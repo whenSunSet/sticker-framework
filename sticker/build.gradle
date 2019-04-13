@@ -1,0 +1,67 @@
+apply plugin: 'com.android.library'
+ext {
+    //bintray 网站上你创建的仓库的名字（必配项）
+    bintrayRepo = 'my-tik-tok'
+    //在这个仓库下的 package name（必配项）
+    bintrayName = 'com.whensunset.sticker'
+    //以上两项均只是指向 bintray 网站上你的仓库和仓库下的package
+
+    //publishedGroupId:artifact:libraryVersion 构成你开源库的唯一路径
+    //以下三项均是必配项
+    publishedGroupId = 'com.whensunset'
+    artifact = 'sticker'
+    libraryVersion = '0.0.1'
+
+    //以下三项只是对开源库的描述（应该不是必配项吧，没尝试过）
+    libraryName = 'sticker'
+    libraryDescription = 'A sticker framework'
+    siteUrl = 'https://github.com/whenSunSet'
+    gitUrl = 'https://github.com/whenSunSet'
+
+    //开发者信息，也是必配的吧
+    developerId = 'WhenSunset'
+    developerName = 'WhenSunset'
+    developerEmail = '1018998632@qq.com'
+
+    licenseName = 'The Apache Software License, Version 2.0'
+    licenseUrl = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+    allLicenses = ["Apache-2.0"]
+}
+android {
+    compileSdkVersion 26
+
+
+
+    defaultConfig {
+        minSdkVersion 15
+        targetSdkVersion 26
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        targetCompatibility 1.8
+        sourceCompatibility 1.8
+    }
+}
+
+tasks.withType(Javadoc).all { enabled = false }
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'com.android.support:appcompat-v7:26.1.0'
+
+}
+
+apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/installv1.gradle'
+apply from: 'https://raw.githubusercontent.com/nuuneoi/JCenter/master/bintrayv1.gradle'
