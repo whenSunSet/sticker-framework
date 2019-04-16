@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="colorPrimary">#3F51B5</color>
+  <color name="colorPrimaryDark">#44000000</color>
+  <color name="colorAccent">#00ff4081</color>
+  <color name="p_color_white">#ffffff</color>
+
+    <color name="transparent_half">#a0000000</color>
+    <color name="transparent_half_orange">#a0ec6f1a</color>
+
+
+    <color name="top_bar_normal_bg">#ec6f1a</color>
+
+    <color name="bg_normal_gray">#e0e0e0</color>
+
+    <color name="line">#e0e0e0</color>
+    <color name="tv_gray_litter">#FAF0E6</color>
+    <color name="tv_gray_normal">#c0c0c0</color>
+    <color name="tv_gray_deep">#818181</color>
+    <color name="tv_gray_lit">#50b1b1b1</color>
+    <color name="tv_gray">@android:color/darker_gray</color>
+    <color name="tv_color">#ffffff</color>
+    <color name="list_glide">#50e0e0e0</color>
+
+
+    <!-- 公司主题色 -->
+    <color name="orange_main">#ec6f1a</color>
+    <color name="orange_light">#ffd39b</color>
+    <color name="orange_deep">#ff6f3a</color>
+    <color name="orange_most">#C76114</color>
+    <color name="orange_litter">#80aa6136</color>
+
+
+    <color name="white">#fffffa</color>
+    <color name="gray">#cccccc</color>
+
+    <color name="text_avgpre">#ffecc50d</color>
+    <color name="drop_down_selected">#7B1FA2</color>
+    <color name="drop_down_unselected">#111111</color>
+    <color name="black_translucent">#50000000</color>
+    <!-- 浅灰色 -->
+    <color name="gray_light">#E7E7E7</color>
+
+    <color name="mask_color">#88888888</color>
+    <color name="main_bg">#10aaaaaa</color>
+    <color name="main_bg_userinfo">#10777777</color>
+    <color name="temple_header_color">#50888888</color>
+    <color name="check_bg">#f2f2f2</color>
+    <color name="un_press_color">#9C27B0</color>
+
+    <color name="color_back">#207579</color>
+    <color name="color_backnor">#7fdcd9</color>
+    <color name="color_dialog">#33b5e5</color>
+
+    <!--******  floating Action Button *********-->
+    <color name="black_semi_transparent">#B2000000</color>
+    <color name="background">#e5e5e5</color>
+    <color name="half_black">#808080</color>
+    <color name="white_pressed">#f1f1f1</color>
+    <color name="pink">#e91e63</color>
+    <color name="pink_pressed">#ec407a</color>
+    <color name="blue_semi_transparent">#805677fc</color>
+    <color name="blue_semi_transparent_pressed">#80738ffe</color>
+
+
+    <!--****************  bottonnavigation   ********************-->
+
+    <color name="teal">#00796B</color>
+    <color name="te">#80FCE6C9</color>
+    <color name="brown">#8D6E63</color>
+    <color name="blue">#2196F3</color>
+    <color name="red">#FF0000</color>
+    <color name="grey">#607D8B</color>
+    <color name="orange">#F57C00</color>
+
+
+    <!--searchView-->
+    <color name="search_layover_bg">#50000000</color>
+    <color name="theme_primary">#2196F3</color>
+</resources>

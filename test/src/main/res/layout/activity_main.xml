@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:orientation="vertical"
+  android:background="@color/colorPrimaryDark"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent">
+
+  <!--<LinearLayout-->
+    <!--android:layout_width="match_parent"-->
+    <!--android:layout_height="wrap_content"-->
+    <!--android:orientation="horizontal">-->
+
+    <!--<Button-->
+      <!--android:text="添加TE"-->
+      <!--android:id="@+id/add_test_element"-->
+      <!--android:layout_width="wrap_content"-->
+      <!--android:layout_height="wrap_content" />-->
+
+    <!--<Button-->
+      <!--android:text="添加ST"-->
+      <!--android:id="@+id/add_static_element"-->
+      <!--android:layout_width="wrap_content"-->
+      <!--android:layout_height="wrap_content" />-->
+
+    <!--<Button-->
+      <!--android:text="开始动画"-->
+      <!--android:id="@+id/start_animation"-->
+      <!--android:layout_width="wrap_content"-->
+      <!--android:layout_height="wrap_content" />-->
+
+
+    <!--<Button-->
+      <!--android:text="恢复动画"-->
+      <!--android:id="@+id/restore_animation"-->
+      <!--android:layout_width="wrap_content"-->
+      <!--android:layout_height="wrap_content" />-->
+
+  <!--</LinearLayout>-->
+
+  <com.whensunset.sticker.TrashElementContainerView
+    android:id="@+id/element_container_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+  </com.whensunset.sticker.TrashElementContainerView>
+
+</LinearLayout>

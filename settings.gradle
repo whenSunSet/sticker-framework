@@ -1,1 +1,1 @@
-include ':sticker'
+include ':sticker', ':test'

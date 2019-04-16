@@ -3,6 +3,7 @@ package com.whensunset.sticker;
 import android.animation.ValueAnimator;
 import android.graphics.PointF;
 import android.graphics.Rect;
+import android.support.annotation.NonNull;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,7 +15,7 @@ import android.widget.AbsoluteLayout;
  */
 
 public abstract class DecorationElement extends AnimationElement {
-  private static final String DEBUG_TAG = "heshixi:DElement";
+  private static final String TAG = "heshixi:DElement";
   
   public static final int ELEMENT_SCALE_ROTATE_ICON_WIDTH = 84; // 旋转按钮的宽度
   
@@ -28,12 +29,14 @@ public abstract class DecorationElement extends AnimationElement {
   
   private ViewGroup.MarginLayoutParams mShowingViewParams = new ViewGroup.MarginLayoutParams(0, 0);
   
-  public DecorationElement(int elementType) {
-    this(elementType, 0, 0);
+  protected boolean mIsSingleFingerScaleAndRotate; // 是否处于单指旋转缩放的状态
+  
+  public DecorationElement() {
+    this(0, 0);
   }
   
-  public DecorationElement(int elementType, float originWidth, float originHeight) {
-    super(elementType, originWidth, originHeight);
+  public DecorationElement(float originWidth, float originHeight) {
+    super(originWidth, originHeight);
     mRedundantAreaTopBottom = REDUNDANT_AREA_TOP_BOTTOM;
     mRedundantAreaLeftRight = REDUNDANT_AREA_LEFT_RIGHT;
   }
@@ -48,12 +51,21 @@ public abstract class DecorationElement extends AnimationElement {
     mShowingViewParams.rightMargin = REDUNDANT_AREA_LEFT_RIGHT + ELEMENT_SCALE_ROTATE_ICON_WIDTH / 2;
     mShowingViewParams.bottomMargin = REDUNDANT_AREA_TOP_BOTTOM + ELEMENT_SCALE_ROTATE_ICON_WIDTH / 2;
     
-    mDecorationView = new DecorationView(mElementContainerView.getContext());
-    mDecorationView.setDecorationElement(this);
+    mDecorationView = initDecorationView();
+    mElementContainerView.addView(mDecorationView);
+  }
+  
+  /**
+   * 初始化边框装饰 view，子类可以实现自己的样式
+   */
+  @NonNull
+  protected DecorationView initDecorationView() {
+    DecorationView decorationView = new DecorationView(mElementContainerView.getContext());
+    decorationView.setDecorationElement(this);
     AbsoluteLayout.LayoutParams decorationViewLayoutParams =
         new AbsoluteLayout.LayoutParams(0, 0, 0, 0);
-    mDecorationView.setLayoutParams(decorationViewLayoutParams);
-    mElementContainerView.addView(mDecorationView);
+    decorationView.setLayoutParams(decorationViewLayoutParams);
+    return decorationView;
   }
   
   @Override
@@ -72,26 +84,40 @@ public abstract class DecorationElement extends AnimationElement {
   
   @Override
   public void startElementAnimation(TransformParam to, Runnable endRun, long milTime) {
+    startElementAnimation(to, endRun, milTime, true);
+  }
+  
+  public void startElementAnimation(TransformParam to, Runnable endRun, long milTime, boolean isEndShowDecoration) {
     super.startElementAnimation(to, endRun, milTime);
     mDecorationView.setVisibility(View.GONE);
-    startDecorationViewAnimation(to, milTime);
+    startDecorationViewAnimation(to, milTime, isEndShowDecoration);
   }
   
   @Override
   public void restoreToBeforeAnimation(Runnable endRun, long milTime) {
-    super.restoreToBeforeAnimation(endRun, milTime);
-    mDecorationView.setVisibility(View.GONE);
-    startDecorationViewAnimation(mBeforeTransformParam, milTime);
+    restoreToBeforeAnimation(endRun, milTime, true);
   }
   
-  private void startDecorationViewAnimation(TransformParam to, long milTime) {
+  public void restoreToBeforeAnimation(Runnable endRun, long milTime, boolean isEndShowDecoration) {
+    super.restoreToBeforeAnimation(endRun, milTime);
+    mDecorationView.setVisibility(View.GONE);
+    startDecorationViewAnimation(mBeforeTransformParam, milTime, isEndShowDecoration);
+  }
+  
+  private void startDecorationViewAnimation(TransformParam to, long milTime, boolean isEndShowDecoration) {
     ElementContainerView.Consumer<ValueAnimator> updateWidthHeight = animator -> {
       ViewGroup.LayoutParams layoutParams = mDecorationView.getLayoutParams();
       layoutParams.width = (int) ((mShowingViewParams.width * (float) animator.getAnimatedValue()) + mShowingViewParams.leftMargin + mShowingViewParams.rightMargin);
       layoutParams.height = (int) ((mShowingViewParams.height * (float) animator.getAnimatedValue()) + mShowingViewParams.topMargin + mShowingViewParams.bottomMargin);
       mDecorationView.setLayoutParams(layoutParams);
     };
-    startViewAnimationByChangeViewParam(to, () -> mDecorationView.setVisibility(View.VISIBLE), milTime, mDecorationView, updateWidthHeight);
+    startViewAnimationByChangeViewParam(to, () -> {
+      if (isEndShowDecoration) {
+        mDecorationView.setVisibility(View.VISIBLE);
+      } else {
+        mDecorationView.setVisibility(View.GONE);
+      }
+    }, milTime, mDecorationView, updateWidthHeight);
   }
   
   @Override
@@ -141,6 +167,7 @@ public abstract class DecorationElement extends AnimationElement {
    */
   public void onSingleFingerScaleAndRotateStart() {
     mDecorationView.setVisibility(View.GONE);
+    mIsSingleFingerScaleAndRotate = true;
   }
   
   /**
@@ -155,6 +182,7 @@ public abstract class DecorationElement extends AnimationElement {
    */
   public void onSingleFingerScaleAndRotateEnd() {
     mDecorationView.setVisibility(View.VISIBLE);
+    mIsSingleFingerScaleAndRotate = true;
   }
   
   /**
@@ -202,7 +230,7 @@ public abstract class DecorationElement extends AnimationElement {
         .toDegrees(Math.atan2(halfWidth, halfHeight)
             - Math.atan2(motionEventX - originWholeRect.centerX(), motionEventY - originWholeRect.centerY()));
     mRotate = getCanonicalRotation(mRotate);
-    Log.d(DEBUG_TAG,
+    Log.d(TAG,
         "scaleAndRotateForSingleFinger mScale:" + mScale + ",mRotate:" + mRotate + ",x:"
             + motionEventX + ",y:"
             + motionEventY + ",rect:" + originWholeRect + ",newRadius:" + newRadius + "oldRadius:"
@@ -292,5 +320,9 @@ public abstract class DecorationElement extends AnimationElement {
         redundantAreaRect.bottom - ELEMENT_SCALE_ROTATE_ICON_WIDTH / 2,
         redundantAreaRect.right + ELEMENT_SCALE_ROTATE_ICON_WIDTH / 2,
         redundantAreaRect.bottom + ELEMENT_SCALE_ROTATE_ICON_WIDTH / 2);
+  }
+  
+  public boolean isSingleFingerScaleAndRotate() {
+    return mIsSingleFingerScaleAndRotate;
   }
 }

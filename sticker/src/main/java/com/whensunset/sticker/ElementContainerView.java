@@ -1,10 +1,12 @@
 package com.whensunset.sticker;
 
 import android.annotation.SuppressLint;
+import android.app.Service;
 import android.content.Context;
 import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.os.Build;
+import android.os.Vibrator;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
@@ -44,6 +46,8 @@ public class ElementContainerView extends AbsoluteLayout {
   protected LinkedList<WsElement> mElementList = new LinkedList<>();
   protected Set<ElementActionListener> mElementActionListenerSet = new HashSet<>(); // 监听列表
   protected MotionEvent[] mUpDownMotionEvent = new MotionEvent[2]; // 储存当前 up down 事件，以便在需要的时候进行事件分发
+  protected Vibrator mVibrator;
+  
   
   {
     init();
@@ -73,7 +77,7 @@ public class ElementContainerView extends AbsoluteLayout {
       @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
       @Override
       public void onGlobalLayout() {
-        mEditorRect.set(0, 0, getWidth(), getHeight());
+        viewLayoutComplete();
         if (getWidth() != 0 && getHeight() != 0) {
           getViewTreeObserver().removeOnGlobalLayoutListener(this);
         }
@@ -82,6 +86,14 @@ public class ElementContainerView extends AbsoluteLayout {
     });
     
     addDetector();
+    mVibrator = (Vibrator) getContext().getSystemService(Service.VIBRATOR_SERVICE);
+  }
+  
+  /**
+   * view layout 完成 width 和 height 都有了，这个时候可以做一些初始化的事情
+   */
+  protected void viewLayoutComplete() {
+    mEditorRect.set(0, 0, getWidth(), getHeight());
   }
   
   // --------------------------------------- 手势操作开始 ---------------------------------------
@@ -102,6 +114,7 @@ public class ElementContainerView extends AbsoluteLayout {
       
       @Override
       public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+        Log.d(TAG, "onFling |||||||||| e1:" + e1 + ",e2:" + e2 + ",velocityX:" + velocityX + ",velocityY:" + velocityY);
         return ElementContainerView.this.onFling(e1, e2, velocityX, velocityY);
       }
       
@@ -112,7 +125,8 @@ public class ElementContainerView extends AbsoluteLayout {
           return false;
         }
         
-        boolean result = scrollSelectTapOtherAction(e2, distanceX, distanceY);
+        float[] distance = new float[]{distanceX, distanceY};
+        boolean result = scrollSelectTapOtherAction(e2, distance);
         if (result) {
           return true;
         }
@@ -120,7 +134,7 @@ public class ElementContainerView extends AbsoluteLayout {
         if (mMode == BaseActionMode.SELECTED_CLICK_OR_MOVE
             || mMode == BaseActionMode.SELECT
             || mMode == BaseActionMode.MOVE) {
-          return singleFingerMove(distanceX, distanceY);
+          return singleFingerMove(distance[0], distance[1]);
         }
         return false;
       }
@@ -393,7 +407,6 @@ public class ElementContainerView extends AbsoluteLayout {
   }
   
   protected boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-    Log.d(TAG, "onFling |||||||||| e1:" + e1 + ",e2:" + e2 + ",velocityX:" + velocityX + ",velocityY:" + velocityY);
     return true;
   }
   
@@ -416,10 +429,12 @@ public class ElementContainerView extends AbsoluteLayout {
   /**
    * 滑动已经选中的元素，如果子类中有操作的话可以给它，优先级最高
    *
+   * @param event    当前的触摸事件
+   * @param distance size 为 2，里面分别为 x 轴的 delta 位移，和 y 轴的 delta 位移
    * @return
    */
-  protected boolean scrollSelectTapOtherAction(@NonNull MotionEvent event, float distanceX, float distanceY) {
-    Log.d(TAG, "scrollSelectTapOtherAction |||||||||| event:" + event + ",distanceX:" + distanceX + ",distanceY:" + distanceY);
+  protected boolean scrollSelectTapOtherAction(@NonNull MotionEvent event, float[] distance) {
+    Log.d(TAG, "scrollSelectTapOtherAction |||||||||| event:" + event + ",distanceX:" + distance[0] + ",distanceY:" + distance[1]);
     return false;
   }
   
@@ -882,7 +897,7 @@ public class ElementContainerView extends AbsoluteLayout {
     }
   }
   
-  interface Consumer<T> {
+  public interface Consumer<T> {
     
     void accept(T t);
   }

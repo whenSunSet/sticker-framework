@@ -11,22 +11,26 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsoluteLayout;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Created by whensunset on 2019/4/6.
  * 对 element 的动画基类
  */
 
 public abstract class AnimationElement extends WsElement {
-  private static final String DEBUG_TAG = "heshixi:AElement";
-  private static final long DEFAULT_ANIMATION_DURATION = 300; // 默认动画时间为 300 毫秒
+  private static final String TAG = "heshixi:AElement";
+  protected static final long DEFAULT_ANIMATION_DURATION = 300; // 默认动画时间为 300 毫秒
   protected TransformParam mBeforeTransformParam = new AnimationElement.TransformParam();
+  protected boolean mIsInAnimation; // 是否处于动画中
   
-  public AnimationElement(int elementType, float originWidth, float originHeight) {
-    super(elementType, originWidth, originHeight);
+  public AnimationElement(float originWidth, float originHeight) {
+    super(originWidth, originHeight);
   }
   
-  public AnimationElement(int elementType) {
-    super(elementType);
+  public AnimationElement() {
+    super();
   }
   
   public void startElementAnimation(TransformParam to) {
@@ -51,6 +55,13 @@ public abstract class AnimationElement extends WsElement {
     mBeforeTransformParam.mAlpha = mAlpha;
     mBeforeTransformParam.mMoveX = mMoveX;
     mBeforeTransformParam.mMoveY = mMoveY;
+    mBeforeTransformParam.mEnableRotate = to.mEnableRotate;
+    mBeforeTransformParam.mEnableScale = to.mEnableScale;
+    mBeforeTransformParam.mEnableAlpha = to.mEnableAlpha;
+    mBeforeTransformParam.mEnableMoveX = to.mEnableMoveX;
+    mBeforeTransformParam.mEnableMoveY = to.mEnableMoveY;
+    mBeforeTransformParam.mIsNeedLimitXY = to.mIsNeedLimitXY;
+    mBeforeTransformParam.mIsNeedLimitScale = to.mIsNeedLimitScale;
     if (isRealChangeShowingView()) {
       ElementContainerView.Consumer<ValueAnimator> updateWidthHeight = animator -> {
         ViewGroup.LayoutParams layoutParams = mElementShowingView.getLayoutParams();
@@ -100,26 +111,50 @@ public abstract class AnimationElement extends WsElement {
       long milTime,
       View animationView) {
     if (to == null) {
-      Log.e(DEBUG_TAG, "startElementAnimation error to is null");
+      Log.e(TAG, "startElementAnimation error to is null");
       return;
     }
     limitTransformParam(to);
     
     AnimatorSet elementAnimator = new AnimatorSet();
-    ObjectAnimator rotationAnimator = ObjectAnimator
-        .ofFloat(animationView, "rotation", mRotate, to.mRotate);
-    ObjectAnimator scaleXAnimator = ObjectAnimator
-        .ofFloat(animationView, "scaleX", mScale, to.mScale);
-    ObjectAnimator scaleYAnimator = ObjectAnimator
-        .ofFloat(animationView, "scaleY", mScale, to.mScale);
-    ObjectAnimator translateXAnimator =
-        ObjectAnimator.ofFloat(animationView, "translationX", getRealX(mMoveX, animationView), getRealX(to.mMoveX, animationView));
-    ObjectAnimator translateYAnimator = ObjectAnimator
-        .ofFloat(animationView, "translationY", getRealY(mMoveY, animationView), getRealY(to.mMoveY, animationView));
-    ObjectAnimator alphaYAnimator = ObjectAnimator
-        .ofFloat(animationView, "alpha", mAlpha, to.mAlpha);
-    elementAnimator.playTogether(rotationAnimator, scaleXAnimator, scaleYAnimator,
-        translateXAnimator, translateYAnimator, alphaYAnimator);
+    List<Animator> animatorList = new ArrayList<>();
+    if (to.mEnableRotate) {
+      ObjectAnimator rotationAnimator = ObjectAnimator
+          .ofFloat(animationView, "rotation", mRotate, to.mRotate);
+      animatorList.add(rotationAnimator);
+    }
+    
+    if (to.mEnableScale) {
+      ObjectAnimator scaleXAnimator = ObjectAnimator
+          .ofFloat(animationView, "scaleX", mScale, to.mScale);
+      animatorList.add(scaleXAnimator);
+    }
+    
+    if (to.mEnableScale) {
+      ObjectAnimator scaleYAnimator = ObjectAnimator
+          .ofFloat(animationView, "scaleY", mScale, to.mScale);
+      animatorList.add(scaleYAnimator);
+    }
+    
+    if (to.mEnableAlpha) {
+      ObjectAnimator alphaYAnimator = ObjectAnimator
+          .ofFloat(animationView, "alpha", mAlpha, to.mAlpha);
+      animatorList.add(alphaYAnimator);
+    }
+    
+    if (to.mEnableMoveX) {
+      ObjectAnimator translateXAnimator =
+          ObjectAnimator.ofFloat(animationView, "translationX", getRealX(mMoveX, animationView), getRealX(to.mMoveX, animationView));
+      animatorList.add(translateXAnimator);
+    }
+    
+    if (to.mEnableMoveY) {
+      ObjectAnimator translateYAnimator = ObjectAnimator
+          .ofFloat(animationView, "translationY", getRealY(mMoveY, animationView), getRealY(to.mMoveY, animationView));
+      animatorList.add(translateYAnimator);
+    }
+    
+    elementAnimator.playTogether(animatorList);
     elementAnimator.setDuration(milTime);
     elementAnimator.setInterpolator(new CubicEaseOutInterpolator());
     elementAnimator.addListener(new AnimatorListenerAdapter() {
@@ -136,7 +171,8 @@ public abstract class AnimationElement extends WsElement {
       }
     });
     elementAnimator.start();
-    Log.i(DEBUG_TAG, "startElementAnimation to:" + to);
+    mIsInAnimation = true;
+    Log.i(TAG, "startElementAnimation to:" + to);
   }
   
   /**
@@ -156,35 +192,53 @@ public abstract class AnimationElement extends WsElement {
       ElementContainerView.Consumer<ValueAnimator> updateWidthHeight) {
     
     if (to == null) {
-      Log.e(DEBUG_TAG, "startViewAnimationByChangeViewParam error to is null");
+      Log.e(TAG, "startViewAnimationByChangeViewParam error to is null");
       return;
     }
     
     limitTransformParam(to);
     
     AnimatorSet elementAnimator = new AnimatorSet();
-    ObjectAnimator rotationAnimator = ObjectAnimator
-        .ofFloat(animationView, "rotation", mRotate, to.mRotate);
-    ObjectAnimator alphaYAnimator = ObjectAnimator
-        .ofFloat(animationView, "alpha", mAlpha, to.mAlpha);
+    List<Animator> animatorList = new ArrayList<>();
+    if (to.mEnableRotate) {
+      ObjectAnimator rotationAnimator = ObjectAnimator
+          .ofFloat(animationView, "rotation", mRotate, to.mRotate);
+      animatorList.add(rotationAnimator);
+    }
     
-    ValueAnimator scaleAnimator = ValueAnimator.ofFloat(mScale, to.mScale);
-    scaleAnimator.addUpdateListener(updateWidthHeight::accept);
+    if (to.mEnableScale) {
+      ValueAnimator scaleAnimator = ValueAnimator.ofFloat(mScale, to.mScale);
+      scaleAnimator.addUpdateListener(updateWidthHeight::accept);
+      animatorList.add(scaleAnimator);
+    }
     
-    ValueAnimator translationXAnimator = ValueAnimator.ofFloat(mMoveX, to.mMoveX);
-    translationXAnimator.addUpdateListener(animation -> {
-      AbsoluteLayout.LayoutParams layoutParams = (AbsoluteLayout.LayoutParams) animationView.getLayoutParams();
-      layoutParams.x = (int) getRealX((Float) animation.getAnimatedValue(), animationView);
-      animationView.setLayoutParams(layoutParams);
-    });
+    if (to.mEnableAlpha) {
+      ObjectAnimator alphaYAnimator = ObjectAnimator
+          .ofFloat(animationView, "alpha", mAlpha, to.mAlpha);
+      animatorList.add(alphaYAnimator);
+    }
     
-    ValueAnimator translationYAnimator = ValueAnimator.ofFloat(mMoveY, to.mMoveY);
-    translationYAnimator.addUpdateListener(animation -> {
-      AbsoluteLayout.LayoutParams layoutParams = (AbsoluteLayout.LayoutParams) animationView.getLayoutParams();
-      layoutParams.y = (int) getRealY((Float) animation.getAnimatedValue(), animationView);
-      animationView.setLayoutParams(layoutParams);
-    });
-    elementAnimator.playTogether(rotationAnimator, alphaYAnimator, scaleAnimator, translationXAnimator, translationYAnimator);
+    if (to.mEnableMoveX) {
+      ValueAnimator translationXAnimator = ValueAnimator.ofFloat(mMoveX, to.mMoveX);
+      translationXAnimator.addUpdateListener(animation -> {
+        AbsoluteLayout.LayoutParams layoutParams = (AbsoluteLayout.LayoutParams) animationView.getLayoutParams();
+        layoutParams.x = (int) getRealX((Float) animation.getAnimatedValue(), animationView);
+        animationView.setLayoutParams(layoutParams);
+      });
+      animatorList.add(translationXAnimator);
+    }
+    
+    if (to.mEnableMoveY) {
+      ValueAnimator translationYAnimator = ValueAnimator.ofFloat(mMoveY, to.mMoveY);
+      translationYAnimator.addUpdateListener(animation -> {
+        AbsoluteLayout.LayoutParams layoutParams = (AbsoluteLayout.LayoutParams) animationView.getLayoutParams();
+        layoutParams.y = (int) getRealY((Float) animation.getAnimatedValue(), animationView);
+        animationView.setLayoutParams(layoutParams);
+      });
+      animatorList.add(translationYAnimator);
+    }
+    
+    elementAnimator.playTogether(animatorList);
     elementAnimator.setDuration(milTime);
     elementAnimator.setInterpolator(new CubicEaseOutInterpolator());
     elementAnimator.addListener(new AnimatorListenerAdapter() {
@@ -201,10 +255,11 @@ public abstract class AnimationElement extends WsElement {
       }
     });
     elementAnimator.start();
-    Log.i(DEBUG_TAG, "startViewAnimationByChangeViewParam to:" + to);
+    mIsInAnimation = true;
+    Log.i(TAG, "startViewAnimationByChangeViewParam to:" + to);
   }
   
-  public class CubicEaseOutInterpolator implements TimeInterpolator {
+  public static class CubicEaseOutInterpolator implements TimeInterpolator {
     @Override
     public float getInterpolation(float input) {
       input -= 1;
@@ -217,12 +272,13 @@ public abstract class AnimationElement extends WsElement {
       endRun.run();
     }
     if (animationView == mElementShowingView) {
-      mRotate = to.mRotate;
-      mScale = to.mScale;
-      mAlpha = to.mAlpha;
-      mMoveX = to.mMoveX;
-      mMoveY = to.mMoveY;
+      mRotate = to.mEnableRotate ? to.mRotate : mRotate;
+      mScale = to.mEnableScale ? to.mScale : mScale;
+      mAlpha = to.mEnableAlpha ? to.mAlpha : mAlpha;
+      mMoveX = to.mEnableMoveX ? to.mMoveX : mMoveX;
+      mMoveY = to.mEnableMoveY ? to.mMoveY : mMoveY;
     }
+    mIsInAnimation = false;
   }
   
   /**
@@ -235,12 +291,25 @@ public abstract class AnimationElement extends WsElement {
       return;
     }
     
-    to.mMoveX = (to.mMoveX < (-1 * getLeftRightLimitLength()) ? (-1 * getLeftRightLimitLength()) : to.mMoveX);
-    to.mMoveX = (to.mMoveX > getLeftRightLimitLength() ? getLeftRightLimitLength() : to.mMoveX);
-    to.mMoveY = (to.mMoveY < (-1 * getBottomTopLimitLength()) ? (-1 * getBottomTopLimitLength()) : to.mMoveY);
-    to.mMoveY = (to.mMoveY > getBottomTopLimitLength() ? getBottomTopLimitLength() : to.mMoveY);
-    to.mScale = (to.mScale < MIN_SCALE_FACTOR ? MIN_SCALE_FACTOR : to.mScale);
-    to.mScale = (to.mScale > MAX_SCALE_FACTOR ? MAX_SCALE_FACTOR : to.mScale);
+    if (to.mIsNeedLimitXY) {
+      to.mMoveX = (to.mMoveX < (-1 * getLeftRightLimitLength()) ? (-1 * getLeftRightLimitLength()) : to.mMoveX);
+      to.mMoveX = (to.mMoveX > getLeftRightLimitLength() ? getLeftRightLimitLength() : to.mMoveX);
+      to.mMoveY = (to.mMoveY < (-1 * getBottomTopLimitLength()) ? (-1 * getBottomTopLimitLength()) : to.mMoveY);
+      to.mMoveY = (to.mMoveY > getBottomTopLimitLength() ? getBottomTopLimitLength() : to.mMoveY);
+    }
+    
+    if (to.mIsNeedLimitScale) {
+      to.mScale = (to.mScale < MIN_SCALE_FACTOR ? MIN_SCALE_FACTOR : to.mScale);
+      to.mScale = (to.mScale > MAX_SCALE_FACTOR ? MAX_SCALE_FACTOR : to.mScale);
+    }
+  }
+  
+  public boolean isInAnimation() {
+    return mIsInAnimation;
+  }
+  
+  public TransformParam getBeforeTransformParam() {
+    return mBeforeTransformParam;
   }
   
   public static class TransformParam {
@@ -253,6 +322,20 @@ public abstract class AnimationElement extends WsElement {
     public float mMoveX = 0f; // 初始化后相对 mElementContainerView 中心 的移动距离
     
     public float mMoveY = 0f; // 初始化后相对 mElementContainerView 中心 的移动距离
+    
+    public boolean mEnableRotate = true;
+    
+    public boolean mEnableScale = true;
+    
+    public boolean mEnableAlpha = true;
+    
+    public boolean mEnableMoveX = true;
+    
+    public boolean mEnableMoveY = true;
+    
+    public boolean mIsNeedLimitXY = true; // 是否需要限制 mMoveX、mMoveY
+    
+    public boolean mIsNeedLimitScale = true; // 是否需要限制 scale
     
     public TransformParam() {
     }
@@ -267,6 +350,25 @@ public abstract class AnimationElement extends WsElement {
       mAlpha = element.mAlpha;
       mMoveX = element.mMoveX;
       mMoveY = element.mMoveY;
+    }
+    
+    public TransformParam(TransformParam transformParam) {
+      if (transformParam == null) {
+        return;
+      }
+      
+      mRotate = transformParam.mRotate;
+      mScale = transformParam.mScale;
+      mAlpha = transformParam.mAlpha;
+      mMoveX = transformParam.mMoveX;
+      mMoveY = transformParam.mMoveY;
+      mEnableRotate = transformParam.mEnableRotate;
+      mEnableScale = transformParam.mEnableRotate;
+      mEnableAlpha = transformParam.mEnableAlpha;
+      mEnableMoveX = transformParam.mEnableMoveX;
+      mEnableMoveY = transformParam.mEnableMoveY;
+      mIsNeedLimitXY = transformParam.mIsNeedLimitXY;
+      mIsNeedLimitScale = transformParam.mIsNeedLimitScale;
     }
     
     @Override

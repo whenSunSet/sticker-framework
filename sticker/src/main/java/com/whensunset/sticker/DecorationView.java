@@ -10,7 +10,6 @@ import android.graphics.Paint;
 import android.graphics.PaintFlagsDrawFilter;
 import android.graphics.Rect;
 import android.os.Build;
-import android.support.annotation.DrawableRes;
 import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
 import android.util.AttributeSet;
@@ -33,7 +32,7 @@ public class DecorationView extends View {
   private static Paint sLinePaint = new Paint();
   private static boolean sIsInit = false;
   
-  public static void initDecorationView(Resources resources, Context context, @DrawableRes int deleteBtnSrc, @DrawableRes int scaleBtnSrc) {
+  public static void initDecorationView(Resources resources, Context context) {
     if (resources == null || context == null || sIsInit) {
       return;
     }
@@ -42,13 +41,13 @@ public class DecorationView extends View {
     options.outHeight = ELEMENT_SCALE_ROTATE_ICON_WIDTH;
     options.outWidth = ELEMENT_SCALE_ROTATE_ICON_WIDTH;
     sRemoveButtonBitmap = BitmapFactory.decodeResource(
-        resources, deleteBtnSrc, options);
+        resources, R.drawable.default_decoration_delete, options);
     
     // 旋转缩放按钮
     options.outHeight = ELEMENT_REMOVE_ICON_WIDTH;
     options.outWidth = ELEMENT_REMOVE_ICON_WIDTH;
     sScaleAndRotateButtonBitmap = BitmapFactory.decodeResource(
-        resources, scaleBtnSrc, options);
+        resources, R.drawable.default_decoration_scale, options);
     
     sLinePaint.setColor(0XFFFFFFFF);
     sLinePaint.setStyle(Paint.Style.STROKE);
@@ -57,7 +56,7 @@ public class DecorationView extends View {
     sIsInit = true;
   }
   
-  private DecorationElement mDecorationElement;
+  protected DecorationElement mDecorationElement;
   
   public DecorationView(Context context) {
     super(context);

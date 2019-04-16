@@ -10,13 +10,13 @@ ext {
     //以下三项均是必配项
     publishedGroupId = 'com.whensunset'
     artifact = 'sticker'
-    libraryVersion = '0.0.1'
+    libraryVersion = '0.2'
 
     //以下三项只是对开源库的描述（应该不是必配项吧，没尝试过）
     libraryName = 'sticker'
     libraryDescription = 'A sticker framework'
-    siteUrl = 'https://github.com/whenSunSet'
-    gitUrl = 'https://github.com/whenSunSet'
+    siteUrl = 'https://github.com/whenSunSet/sticker-framework'
+    gitUrl = 'https://github.com/whenSunSet/sticker-framework'
 
     //开发者信息，也是必配的吧
     developerId = 'WhenSunset'

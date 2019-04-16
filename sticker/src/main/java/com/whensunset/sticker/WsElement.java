@@ -3,15 +3,11 @@ package com.whensunset.sticker;
 import android.graphics.Matrix;
 import android.graphics.PointF;
 import android.graphics.Rect;
-import android.support.annotation.IntDef;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsoluteLayout;
-
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
 
 
 /**
@@ -20,17 +16,7 @@ import java.lang.annotation.RetentionPolicy;
  */
 
 public abstract class WsElement implements Cloneable {
-  private static final String DEBUG_TAG = "heshixi:WsElement";
-  
-  @IntDef({
-      ElementType.TEXT,
-      ElementType.NORMAL_STICKER,
-  })
-  @Retention(RetentionPolicy.SOURCE)
-  public @interface ElementType {
-    int TEXT = 0; // 文字
-    int NORMAL_STICKER = 1; // 普通贴纸
-  }
+  private static final String TAG = "heshixi:WsElement";
   
   protected static final float MIN_SCALE_FACTOR = 0.3F; // 最小缩放倍数
   protected static final float MAX_SCALE_FACTOR = 4F; // 最大缩放倍数
@@ -58,8 +44,9 @@ public abstract class WsElement implements Cloneable {
   
   protected boolean mIsSelected; // 是否处于选中状态
   
-  @ElementType
-  protected int mElementType; // 用于区别元素种类
+  protected boolean mIsSingeFingerMove; // 是否处于单指移动的状态
+  
+  protected boolean mIsDoubleFingerScaleAndRotate; // 是否处于双指旋转缩放的状态
   
   // element 中 mElementShowingView 的父 View，用于包容所有的 element 需要显示的 view
   protected ElementContainerView mElementContainerView;
@@ -76,14 +63,13 @@ public abstract class WsElement implements Cloneable {
   // 是否在刷新 showing view 的时候，真正修改 height、width 之类的参数。一般来说只是使用 scale 和 rotate 来刷新 view
   protected boolean mIsRealUpdateShowingViewParams = false;
   
-  protected WsElement(@ElementType int elementType, float originWidth, float originHeight) {
-    this(elementType);
+  protected WsElement(float originWidth, float originHeight) {
+    this();
     mOriginWidth = originWidth;
     mOriginHeight = originHeight;
   }
   
-  protected WsElement(@ElementType int elementType) {
-    mElementType = elementType;
+  protected WsElement() {
   }
   
   /**
@@ -121,6 +107,7 @@ public abstract class WsElement implements Cloneable {
    * 当前 element 开始单指移动
    */
   public void onSingleFingerMoveStart() {
+    mIsSingeFingerMove = true;
   }
   
   /**
@@ -135,6 +122,7 @@ public abstract class WsElement implements Cloneable {
    * 当前 element 单指移动结束
    */
   public void onSingleFingerMoveEnd() {
+    mIsSingeFingerMove = false;
   }
   
   /**
@@ -142,6 +130,7 @@ public abstract class WsElement implements Cloneable {
    */
   public void onDoubleFingerScaleAndRotateStart(float deltaRotate, float deltaScale) {
     doubleFingerScaleAndRotate(deltaRotate, deltaScale);
+    mIsDoubleFingerScaleAndRotate = true;
   }
   
   /**
@@ -155,6 +144,7 @@ public abstract class WsElement implements Cloneable {
    * 当前 element 双指旋转缩放结束
    */
   public void onDoubleFingerScaleAndRotateEnd() {
+    mIsDoubleFingerScaleAndRotate = false;
   }
   
   private void doubleFingerScaleAndRotate(float deltaRotate, float deltaScale) {
@@ -171,6 +161,7 @@ public abstract class WsElement implements Cloneable {
   public void select() {
     mZIndex = 0;
     mIsSelected = true;
+    mElementShowingView.bringToFront();
   }
   
   /**
@@ -221,7 +212,6 @@ public abstract class WsElement implements Cloneable {
       mElementShowingView.setTranslationY(getRealY(mMoveY, mElementShowingView));
     }
     mElementShowingView.setRotation(mRotate);
-    mElementShowingView.bringToFront();
   }
   
   /**
@@ -251,7 +241,7 @@ public abstract class WsElement implements Cloneable {
    */
   protected boolean limitElementAreaLeftRight() {
     float halfLimitWidthLength = getLeftRightLimitLength();
-    Log.d(DEBUG_TAG, "limitElementAreaLeftRight halfWidth:" + halfLimitWidthLength + ",moveX:" + mMoveX);
+    Log.d(TAG, "limitElementAreaLeftRight halfWidth:" + halfLimitWidthLength + ",moveX:" + mMoveX);
     return (-1 * halfLimitWidthLength <= mMoveX && mMoveX <= halfLimitWidthLength);
   }
   
@@ -262,7 +252,7 @@ public abstract class WsElement implements Cloneable {
    */
   protected boolean limitElementAreaTopBottom() {
     float halfLimitHeightLength = getBottomTopLimitLength();
-    Log.d(DEBUG_TAG, "limitElementAreaLeftRight halfHeight:" + halfLimitHeightLength + ",moveY:" + mMoveY);
+    Log.d(TAG, "limitElementAreaLeftRight halfHeight:" + halfLimitHeightLength + ",moveY:" + mMoveY);
     return (-1 * halfLimitHeightLength <= mMoveY && mMoveY <= halfLimitHeightLength);
   }
   
@@ -305,7 +295,7 @@ public abstract class WsElement implements Cloneable {
       mInvertMatrix.mapPoints(point);
       afterRotatePoint = new PointF(point[0], point[1]);
     }
-    Log.d(DEBUG_TAG,
+    Log.d(TAG,
         "isPointInTheRect rect:" + rect + ",model:" + this);
     return rect.contains((int) afterRotatePoint.x, (int) afterRotatePoint.y);
   }
@@ -377,5 +367,13 @@ public abstract class WsElement implements Cloneable {
    */
   public boolean isRealChangeShowingView() {
     return mIsRealUpdateShowingViewParams;
+  }
+  
+  public boolean isSingerFingerMove() {
+    return mIsSingeFingerMove;
+  }
+  
+  public boolean isDoubleFingerScaleAndRotate() {
+    return mIsDoubleFingerScaleAndRotate;
   }
 }

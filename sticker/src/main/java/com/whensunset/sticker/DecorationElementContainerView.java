@@ -13,9 +13,10 @@ import android.view.MotionEvent;
  */
 
 public class DecorationElementContainerView extends ElementContainerView {
-  private static final String DEBUG_TAG = "heshixi:DECV";
+  private static final String TAG = "heshixi:DECV";
   
   protected DecorationActionMode mDecorationActionMode;
+  protected boolean mIsRunOnFlingAnimation = true;
   
   public DecorationElementContainerView(Context context) {
     super(context);
@@ -60,15 +61,20 @@ public class DecorationElementContainerView extends ElementContainerView {
   
   @Override
   protected boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+    if (!mIsRunOnFlingAnimation) {
+      return false;
+    }
+    
     DecorationElement element = (DecorationElement) mSelectedElement;
     if (element == null) {
       return false;
     }
+  
     element = (DecorationElement) findElementByPosition(e2.getX(), e2.getY());
     if (element == null) {
       return false;
     }
-    
+  
     AnimationElement.TransformParam to = new AnimationElement.TransformParam(element);
     to.mMoveY += (velocityY * 0.2 * 0.3);
     to.mMoveX += (velocityX * 0.2 * 0.3);
@@ -86,24 +92,28 @@ public class DecorationElementContainerView extends ElementContainerView {
       mDecorationActionMode = DecorationActionMode.SINGER_FINGER_SCALE_AND_ROTATE;
       selectedDecorationElement.onSingleFingerScaleAndRotateStart();
       callListener(elementActionListener -> {
-        ((TikTokElementActionListener) elementActionListener).onSingleFingerScaleAndRotateStart(selectedDecorationElement);
+        ((DecorationElementActionListener) elementActionListener).onSingleFingerScaleAndRotateStart(selectedDecorationElement);
       });
-      Log.d(DEBUG_TAG, "downSelectTapOtherAction selected scale and rotate");
+      Log.d(TAG, "downSelectTapOtherAction selected scale and rotate");
       return true;
     }
     if (selectedDecorationElement.isInRemoveButton(x, y)) {
       mDecorationActionMode = DecorationActionMode.CLICK_BUTTON_DELETE;
-      Log.d(DEBUG_TAG, "downSelectTapOtherAction selected delete");
+      Log.d(TAG, "downSelectTapOtherAction selected delete");
       return true;
     }
     return false;
   }
-  
+ 
   @Override
-  protected boolean scrollSelectTapOtherAction(@NonNull MotionEvent event, float distanceX, float distanceY) {
+  protected boolean scrollSelectTapOtherAction(@NonNull MotionEvent event, float[] distance) {
     if (mSelectedElement == null) {
-      Log.d(DEBUG_TAG, "detectorSingleFingerRotateAndScale scale and rotate but not select");
+      Log.d(TAG, "detectorSingleFingerRotateAndScale scale and rotate but not select");
       return false;
+    }
+    
+    if (mDecorationActionMode == DecorationActionMode.CLICK_BUTTON_DELETE) {
+      return true;
     }
     
     if (mDecorationActionMode == DecorationActionMode.SINGER_FINGER_SCALE_AND_ROTATE) {
@@ -112,11 +122,11 @@ public class DecorationElementContainerView extends ElementContainerView {
       update();
       // 在单指旋转缩放过程中
       callListener(elementActionListener -> {
-        ((TikTokElementActionListener) elementActionListener).onSingleFingerScaleAndRotateProcess(selectedDecorationElement);
+        ((DecorationElementActionListener) elementActionListener).onSingleFingerScaleAndRotateProcess(selectedDecorationElement);
       });
-      Log.d(DEBUG_TAG,
-          "scrollSelectTapOtherAction scale and rotate |||||||||| distanceX:" + distanceX
-              + "distanceY:" + distanceY + "x:" + event.getX() + "y:" + event.getY());
+      Log.d(TAG,
+          "scrollSelectTapOtherAction scale and rotate |||||||||| distanceX:" + distance[0]
+              + "distanceY:" + distance[1] + "x:" + event.getX() + "y:" + event.getY());
       return true;
     }
     
@@ -126,31 +136,32 @@ public class DecorationElementContainerView extends ElementContainerView {
   @Override
   protected boolean upSelectTapOtherAction(@NonNull MotionEvent event) {
     if (mSelectedElement == null) {
-      Log.w(DEBUG_TAG, "upSelectTapOtherAction delete but not select ");
+      Log.w(TAG, "upSelectTapOtherAction delete but not select ");
       return false;
     }
     
     DecorationElement selectedDecorationElement = (DecorationElement) mSelectedElement;
-    if (mDecorationActionMode == DecorationActionMode.CLICK_BUTTON_DELETE) {
+    if (mDecorationActionMode == DecorationActionMode.CLICK_BUTTON_DELETE
+        && selectedDecorationElement.isInRemoveButton(event.getX(), event.getY())) {
       unSelectDeleteAndUpdateTopElement();
       mDecorationActionMode = DecorationActionMode.NONE;
-      Log.d(DEBUG_TAG, "upSelectTapOtherAction delete");
+      Log.d(TAG, "upSelectTapOtherAction delete");
       return true;
     }
     
     if (mDecorationActionMode == DecorationActionMode.SINGER_FINGER_SCALE_AND_ROTATE) {
       selectedDecorationElement.onSingleFingerScaleAndRotateEnd();
       callListener(elementActionListener -> {
-        ((TikTokElementActionListener) elementActionListener).onSingleFingerScaleAndRotateEnd(selectedDecorationElement);
+        ((DecorationElementActionListener) elementActionListener).onSingleFingerScaleAndRotateEnd(selectedDecorationElement);
       });
       mDecorationActionMode = DecorationActionMode.NONE;
-      Log.d(DEBUG_TAG, "upSelectTapOtherAction scale and rotate end");
+      Log.d(TAG, "upSelectTapOtherAction scale and rotate end");
       return true;
     }
     return false;
   }
   
-  public interface TikTokElementActionListener extends ElementActionListener {
+  public interface DecorationElementActionListener extends ElementActionListener {
     /**
      * 选中了元素之后，对元素单指缩放旋转开始的回调
      *
@@ -173,21 +184,21 @@ public class DecorationElementContainerView extends ElementContainerView {
     void onSingleFingerScaleAndRotateEnd(DecorationElement element);
   }
   
-  public static class DefaultTikTokElementActionListener extends DefaultElementActionListener implements TikTokElementActionListener {
+  public static class DefaultDecorationElementActionListener extends DefaultElementActionListener implements DecorationElementActionListener {
     
     @Override
     public void onSingleFingerScaleAndRotateStart(DecorationElement element) {
-      Log.d(DEBUG_TAG, "onSingleFingerScaleAndRotateStart");
+      Log.d(TAG, "onSingleFingerScaleAndRotateStart");
     }
     
     @Override
     public void onSingleFingerScaleAndRotateProcess(DecorationElement element) {
-      Log.d(DEBUG_TAG, "onSingleFingerScaleAndRotateProcess");
+      Log.d(TAG, "onSingleFingerScaleAndRotateProcess");
     }
     
     @Override
     public void onSingleFingerScaleAndRotateEnd(DecorationElement element) {
-      Log.d(DEBUG_TAG, "onSingleFingerScaleAndRotateEnd");
+      Log.d(TAG, "onSingleFingerScaleAndRotateEnd");
     }
   }
   
