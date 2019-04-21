@@ -4,8 +4,8 @@
 
 ## 二、代码分析
 
-- 1.[简书：从零开始仿写一个抖音App——Android绘制机制以及Surface家族源码全解析](https://www.jianshu.com/p/dec355e3afd5)
-- 2.[掘金：从零开始仿写一个抖音App——Android绘制机制以及Surface家族源码全解析](https://juejin.im/post/5cb411c75188251aed78c3d9)
+- 1.[简书：抖音、ins、微信功能大比拼——Story的贴纸文字](https://www.jianshu.com/p/4cd1dcbd8e8a)
+- 2.[掘金：抖音、ins、微信功能大比拼——Story的贴纸文字](https://juejin.im/post/5cb411c75188251aed78c3d9)
 
 ## 三、文档
 
