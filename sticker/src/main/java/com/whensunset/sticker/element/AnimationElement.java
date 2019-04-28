@@ -1,4 +1,4 @@
-package com.whensunset.sticker;
+package com.whensunset.sticker.element;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
@@ -10,6 +10,8 @@ import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsoluteLayout;
+
+import com.whensunset.sticker.container.ElementContainerView;
 
 import java.util.ArrayList;
 import java.util.List;

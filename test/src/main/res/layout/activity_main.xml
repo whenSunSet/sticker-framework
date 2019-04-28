@@ -37,10 +37,10 @@
 
   </LinearLayout>
 
-  <com.whensunset.sticker.TrashElementContainerView
+  <com.whensunset.sticker.container.TrashElementContainerView
     android:id="@+id/element_container_view"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
-  </com.whensunset.sticker.TrashElementContainerView>
+  </com.whensunset.sticker.container.TrashElementContainerView>
 
 </LinearLayout>

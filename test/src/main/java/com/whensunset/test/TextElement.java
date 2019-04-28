@@ -3,7 +3,7 @@ package com.whensunset.test;
 import android.view.View;
 import android.widget.EditText;
 
-import com.whensunset.sticker.DecorationElement;
+import com.whensunset.sticker.element.DecorationElement;
 
 /**
  * Created by whensunset on 2019/3/31.
@@ -12,6 +12,7 @@ import com.whensunset.sticker.DecorationElement;
 public class TextElement extends DecorationElement {
   
   private EditText mEditText;
+  
   public TextElement(float originWidth, float originHeight) {
     super(originWidth, originHeight);
   }

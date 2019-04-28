@@ -4,7 +4,7 @@ import android.support.v7.widget.AppCompatImageView;
 import android.view.View;
 import android.widget.ImageView;
 
-import com.whensunset.sticker.DecorationElement;
+import com.whensunset.sticker.element.DecorationElement;
 
 /**
  * Created by whensunset on 2019/3/31.
@@ -12,6 +12,7 @@ import com.whensunset.sticker.DecorationElement;
 
 public class TestElement extends DecorationElement {
   private ImageView mTestImageView;
+  
   public TestElement(float originWidth, float originHeight) {
     super(originWidth, originHeight);
   }

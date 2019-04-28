@@ -1,4 +1,4 @@
-package com.whensunset.sticker;
+package com.whensunset.sticker.container;
 
 import android.content.Context;
 import android.os.Build;
@@ -7,6 +7,10 @@ import android.support.annotation.RequiresApi;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
+
+import com.whensunset.sticker.element.AnimationElement;
+import com.whensunset.sticker.element.DecorationElement;
+import com.whensunset.sticker.element.WsElement;
 
 /**
  * Created by whensunset on 2019/3/31.
@@ -69,12 +73,12 @@ public class DecorationElementContainerView extends ElementContainerView {
     if (element == null) {
       return false;
     }
-  
+    
     element = (DecorationElement) findElementByPosition(e2.getX(), e2.getY());
     if (element == null) {
       return false;
     }
-  
+    
     AnimationElement.TransformParam to = new AnimationElement.TransformParam(element);
     to.mMoveY += (velocityY * 0.2 * 0.3);
     to.mMoveX += (velocityX * 0.2 * 0.3);
@@ -83,7 +87,7 @@ public class DecorationElementContainerView extends ElementContainerView {
   }
   
   @Override
-  protected boolean downSelectTapOtherAction(@NonNull MotionEvent event) {
+  protected boolean downTapSelectElementPreAction(@NonNull MotionEvent event) {
     mDecorationActionMode = DecorationActionMode.NONE;
     final float x = event.getX(), y = event.getY();
     DecorationElement selectedDecorationElement = (DecorationElement) mSelectedElement;
@@ -94,19 +98,19 @@ public class DecorationElementContainerView extends ElementContainerView {
       callListener(elementActionListener -> {
         ((DecorationElementActionListener) elementActionListener).onSingleFingerScaleAndRotateStart(selectedDecorationElement);
       });
-      Log.d(TAG, "downSelectTapOtherAction selected scale and rotate");
+      Log.d(TAG, "downTapSelectElementPreAction selected scale and rotate");
       return true;
     }
     if (selectedDecorationElement.isInRemoveButton(x, y)) {
       mDecorationActionMode = DecorationActionMode.CLICK_BUTTON_DELETE;
-      Log.d(TAG, "downSelectTapOtherAction selected delete");
+      Log.d(TAG, "downTapSelectElementPreAction selected delete");
       return true;
     }
     return false;
   }
- 
+  
   @Override
-  protected boolean scrollSelectTapOtherAction(@NonNull MotionEvent event, float[] distance) {
+  protected boolean scrollTapSelectElementPreAction(@NonNull MotionEvent event, float[] distanceXY) {
     if (mSelectedElement == null) {
       Log.d(TAG, "detectorSingleFingerRotateAndScale scale and rotate but not select");
       return false;
@@ -125,8 +129,8 @@ public class DecorationElementContainerView extends ElementContainerView {
         ((DecorationElementActionListener) elementActionListener).onSingleFingerScaleAndRotateProcess(selectedDecorationElement);
       });
       Log.d(TAG,
-          "scrollSelectTapOtherAction scale and rotate |||||||||| distanceX:" + distance[0]
-              + "distanceY:" + distance[1] + "x:" + event.getX() + "y:" + event.getY());
+          "scrollTapSelectElementPreAction scale and rotate |||||||||| distanceX:" + distanceXY[0]
+              + "distanceY:" + distanceXY[1] + "x:" + event.getX() + "y:" + event.getY());
       return true;
     }
     
@@ -134,9 +138,9 @@ public class DecorationElementContainerView extends ElementContainerView {
   }
   
   @Override
-  protected boolean upSelectTapOtherAction(@NonNull MotionEvent event) {
+  protected boolean upTapSelectElementPreAction(@NonNull MotionEvent event) {
     if (mSelectedElement == null) {
-      Log.w(TAG, "upSelectTapOtherAction delete but not select ");
+      Log.w(TAG, "upTapSelectElementPreAction delete but not select ");
       return false;
     }
     
@@ -145,7 +149,7 @@ public class DecorationElementContainerView extends ElementContainerView {
         && selectedDecorationElement.isInRemoveButton(event.getX(), event.getY())) {
       unSelectDeleteAndUpdateTopElement();
       mDecorationActionMode = DecorationActionMode.NONE;
-      Log.d(TAG, "upSelectTapOtherAction delete");
+      Log.d(TAG, "upTapSelectElementPreAction delete");
       return true;
     }
     
@@ -155,7 +159,7 @@ public class DecorationElementContainerView extends ElementContainerView {
         ((DecorationElementActionListener) elementActionListener).onSingleFingerScaleAndRotateEnd(selectedDecorationElement);
       });
       mDecorationActionMode = DecorationActionMode.NONE;
-      Log.d(TAG, "upSelectTapOtherAction scale and rotate end");
+      Log.d(TAG, "upTapSelectElementPreAction scale and rotate end");
       return true;
     }
     return false;

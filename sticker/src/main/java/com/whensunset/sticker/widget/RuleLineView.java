@@ -1,4 +1,4 @@
-package com.whensunset.sticker;
+package com.whensunset.sticker.widget;
 
 import android.content.Context;
 import android.graphics.Canvas;
@@ -20,6 +20,7 @@ public class RuleLineView extends View {
   private static final String TAG = "heshixi:RuleLineView";
   private static final float LINE_WIDTH = 6; // 线的宽度，单位为 px
   private static Paint sLinePaint = new Paint();
+  
   static {
     sLinePaint.setColor(0XFF33B5E5);
     sLinePaint.setStyle(Paint.Style.STROKE);
@@ -57,7 +58,7 @@ public class RuleLineView extends View {
       Log.w(TAG, "onDraw no rule line");
       return;
     }
-  
+    
     for (int i = 0; i < mRuleLines.length; i++) {
       if (mRuleLines[i] == null || mRuleLines[i].mStartPoint == null || mRuleLines[i].mEndPoint == null) {
         Log.w(TAG, "onDraw start or end point is null");

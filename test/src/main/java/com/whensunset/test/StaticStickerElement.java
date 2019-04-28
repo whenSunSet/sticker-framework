@@ -8,7 +8,7 @@ import android.view.View;
 
 import com.facebook.drawee.view.SimpleDraweeView;
 import com.facebook.imagepipeline.request.ImageRequest;
-import com.whensunset.sticker.DecorationElement;
+import com.whensunset.sticker.element.DecorationElement;
 
 import java.io.File;
 

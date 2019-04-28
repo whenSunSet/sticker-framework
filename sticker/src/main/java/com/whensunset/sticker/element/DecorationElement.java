@@ -1,4 +1,4 @@
-package com.whensunset.sticker;
+package com.whensunset.sticker.element;
 
 import android.animation.ValueAnimator;
 import android.graphics.PointF;
@@ -8,6 +8,9 @@ import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsoluteLayout;
+
+import com.whensunset.sticker.container.ElementContainerView;
+import com.whensunset.sticker.widget.DecorationView;
 
 /**
  * Created by whensunset on 2019/3/31.

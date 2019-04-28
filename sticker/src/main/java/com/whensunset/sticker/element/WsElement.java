@@ -1,4 +1,4 @@
-package com.whensunset.sticker;
+package com.whensunset.sticker.element;
 
 import android.graphics.Matrix;
 import android.graphics.PointF;
@@ -8,6 +8,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AbsoluteLayout;
+
+import com.whensunset.sticker.container.ElementContainerView;
 
 
 /**
@@ -375,5 +377,13 @@ public abstract class WsElement implements Cloneable {
   
   public boolean isDoubleFingerScaleAndRotate() {
     return mIsDoubleFingerScaleAndRotate;
+  }
+  
+  public View getElementShowingView() {
+    return mElementShowingView;
+  }
+  
+  public float getRotate() {
+    return mRotate;
   }
 }

@@ -1,4 +1,4 @@
-package com.whensunset.sticker;
+package com.whensunset.sticker.container;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
@@ -14,6 +14,10 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
+
+import com.whensunset.sticker.R;
+import com.whensunset.sticker.element.AnimationElement;
+import com.whensunset.sticker.element.DecorationElement;
 
 /**
  * Created by whensunset on 2019/4/14.
@@ -80,19 +84,19 @@ public class TrashElementContainerView extends RuleLineElementContainerView {
     trashView.setLayoutParams(layoutParams);
     trashView.setImageResource(R.drawable.default_decoration_trash);
     int padding = (int) (mTrashRect.width() * 0.25);
-    trashView.setPadding(padding, padding ,padding ,padding);
+    trashView.setPadding(padding, padding, padding, padding);
     return trashView;
   }
   
   @Override
-  protected boolean scrollSelectTapOtherAction(@NonNull MotionEvent event, float[] distance) {
+  protected boolean scrollTapSelectElementPreAction(@NonNull MotionEvent event, float[] distanceXY) {
     if (mSelectedElement == null) {
-      Log.w(TAG, "scrollSelectTapOtherAction mSelectedElement is null");
-      return super.scrollSelectTapOtherAction(event, distance);
+      Log.w(TAG, "scrollTapSelectElementPreAction mSelectedElement is null");
+      return super.scrollTapSelectElementPreAction(event, distanceXY);
     }
     if (!mSelectedElement.isSingerFingerMove()) {
-      Log.w(TAG, "scrollSelectTapOtherAction mSelectedElement is not move");
-      return super.scrollSelectTapOtherAction(event, distance);
+      Log.w(TAG, "scrollTapSelectElementPreAction mSelectedElement is not move");
+      return super.scrollTapSelectElementPreAction(event, distanceXY);
     }
     
     boolean isInTrashRect = mTrashRect.contains(event.getX(), event.getY());
@@ -103,11 +107,11 @@ public class TrashElementContainerView extends RuleLineElementContainerView {
       elementLeaveTrash(event);
     }
     mIsInTrashRect = isInTrashRect;
-    return super.scrollSelectTapOtherAction(event, distance);
+    return super.scrollTapSelectElementPreAction(event, distanceXY);
   }
   
   @Override
-  protected boolean upSelectTapOtherAction(@NonNull MotionEvent event) {
+  protected boolean upTapSelectElementPreAction(@NonNull MotionEvent event) {
     if (mIsInTrashRect) {
       DecorationElement decorationElement = (DecorationElement) mSelectedElement;
       AnimationElement.TransformParam to = new AnimationElement.TransformParam(decorationElement);
@@ -121,7 +125,7 @@ public class TrashElementContainerView extends RuleLineElementContainerView {
       trashViewHide();
       return true;
     }
-    return super.upSelectTapOtherAction(event);
+    return super.upTapSelectElementPreAction(event);
   }
   
   @Override
@@ -137,8 +141,8 @@ public class TrashElementContainerView extends RuleLineElementContainerView {
   }
   
   @Override
-  protected void singleFingerMoveEnd() {
-    super.singleFingerMoveEnd();
+  protected void singleFingerMoveEnd(MotionEvent event) {
+    super.singleFingerMoveEnd(event);
     trashViewHide();
   }
   

@@ -7,9 +7,9 @@ import android.view.Window;
 import android.widget.Button;
 
 import com.facebook.drawee.backends.pipeline.Fresco;
-import com.whensunset.sticker.AnimationElement;
-import com.whensunset.sticker.RuleLineElementContainerView;
 import com.whensunset.sticker.Sticker;
+import com.whensunset.sticker.container.RuleLineElementContainerView;
+import com.whensunset.sticker.element.AnimationElement;
 
 public class MainActivity extends Activity {
   private RuleLineElementContainerView mElementContainerView;

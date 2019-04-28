@@ -4,7 +4,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
-import com.whensunset.sticker.DecorationElement;
+import com.whensunset.sticker.element.DecorationElement;
 
 
 /**

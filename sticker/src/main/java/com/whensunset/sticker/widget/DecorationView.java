@@ -1,4 +1,4 @@
-package com.whensunset.sticker;
+package com.whensunset.sticker.widget;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -15,8 +15,11 @@ import android.support.annotation.RequiresApi;
 import android.util.AttributeSet;
 import android.view.View;
 
-import static com.whensunset.sticker.DecorationElement.ELEMENT_REMOVE_ICON_WIDTH;
-import static com.whensunset.sticker.DecorationElement.ELEMENT_SCALE_ROTATE_ICON_WIDTH;
+import com.whensunset.sticker.R;
+import com.whensunset.sticker.element.DecorationElement;
+
+import static com.whensunset.sticker.element.DecorationElement.ELEMENT_REMOVE_ICON_WIDTH;
+import static com.whensunset.sticker.element.DecorationElement.ELEMENT_SCALE_ROTATE_ICON_WIDTH;
 
 
 /**

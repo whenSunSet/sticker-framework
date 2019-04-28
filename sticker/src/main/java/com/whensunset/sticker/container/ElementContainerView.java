@@ -1,12 +1,12 @@
-package com.whensunset.sticker;
+package com.whensunset.sticker.container;
 
 import android.annotation.SuppressLint;
 import android.app.Service;
 import android.content.Context;
-import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.os.Build;
 import android.os.Vibrator;
+import android.support.annotation.CallSuper;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.annotation.RequiresApi;
@@ -17,19 +17,22 @@ import android.view.MotionEvent;
 import android.view.ViewTreeObserver;
 import android.widget.AbsoluteLayout;
 
+import com.whensunset.sticker.MultiTouchGestureDetector;
+import com.whensunset.sticker.container.worker.ContainerWorker;
+import com.whensunset.sticker.element.WsElement;
+
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-
-import static com.whensunset.sticker.CommonUtil.copyMotionEvent;
+import java.util.TreeSet;
 
 /**
  * Created by whensunset on 2019/3/18.
  * 容纳元素的基类，用于接收各种手势操作和维持数据结构
  */
 
-public class ElementContainerView extends AbsoluteLayout {
+public abstract class ElementContainerView extends AbsoluteLayout {
   private static final String TAG = "WhenSunset:ECV";
   // 每个双指旋转事件能进行的最大角度，注意这里限制的是 delta 值，超过了这个值，就丢弃这个事件
   private static final int DOUBLE_FINGER_ROTATE_THRESHOLD = 45;
@@ -45,9 +48,8 @@ public class ElementContainerView extends AbsoluteLayout {
   protected WsElement mSelectedElement; // 当前选中的 元素
   protected LinkedList<WsElement> mElementList = new LinkedList<>();
   protected Set<ElementActionListener> mElementActionListenerSet = new HashSet<>(); // 监听列表
-  protected MotionEvent[] mUpDownMotionEvent = new MotionEvent[2]; // 储存当前 up down 事件，以便在需要的时候进行事件分发
+  protected Set<ContainerWorker> mContainerWorkerSet = new TreeSet<>(); // 手势的功能列表
   protected Vibrator mVibrator;
-  
   
   {
     init();
@@ -72,7 +74,7 @@ public class ElementContainerView extends AbsoluteLayout {
     super(context, attrs, defStyleAttr, defStyleRes);
   }
   
-  protected void init() {
+  private void init() {
     getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
       @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
       @Override
@@ -94,6 +96,7 @@ public class ElementContainerView extends AbsoluteLayout {
    */
   protected void viewLayoutComplete() {
     mEditorRect.set(0, 0, getWidth(), getHeight());
+    callContainerWorker(ContainerWorker::viewLayoutComplete);
   }
   
   // --------------------------------------- 手势操作开始 ---------------------------------------
@@ -101,11 +104,29 @@ public class ElementContainerView extends AbsoluteLayout {
   private void addDetector() {
     mDetector = new GestureDetector(getContext(), new GestureDetector.OnGestureListener() {
       @Override
-      public boolean onDown(MotionEvent e) {
-        if (mIsInDoubleFinger) {
-          return false;
+      public boolean onDown(MotionEvent event) {
+        mMode = BaseActionMode.SELECTED_CLICK_OR_MOVE;
+        WsElement clickedElement = getElementFromMotionEvent(event);
+        
+        Log.d(TAG, "singleFingerDown |||||||||| clickedElement:" + clickedElement + ",mSelectedElement:" + mSelectedElement);
+        if (mSelectedElement != null) {
+          if (WsElement.isSameElement(clickedElement, mSelectedElement)) {
+            downTapSelectElementAction(event);
+          } else {
+            if (clickedElement == null) {
+              downTapBlank(event);
+            } else {
+              downTapUnSelectElementAction(event, clickedElement);
+            }
+          }
+        } else {
+          if (clickedElement == null) {
+            downTapBlank(event);
+          } else {
+            downTapUnSelectElementAction(event, clickedElement);
+          }
         }
-        return singleFingerDown(e);
+        return true;
       }
       
       @Override
@@ -120,23 +141,19 @@ public class ElementContainerView extends AbsoluteLayout {
       
       @RequiresApi(api = Build.VERSION_CODES.ECLAIR)
       @Override
-      public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-        if (mIsInDoubleFinger) {
-          return false;
+      public boolean onScroll(MotionEvent e1, MotionEvent event, float distanceX, float distanceY) {
+        float[] distanceXY = new float[]{distanceX, distanceY};
+        WsElement scrolledElement = getElementFromMotionEvent(event);
+        if (mSelectedElement != null && WsElement.isSameElement(scrolledElement, mSelectedElement)) {
+          scrollTapSelectElementAction(event, distanceXY);
+        } else {
+          scrollTapUnSelectElementAction(event, distanceXY);
         }
-        
-        float[] distance = new float[]{distanceX, distanceY};
-        boolean result = scrollSelectTapOtherAction(e2, distance);
-        if (result) {
-          return true;
-        }
-        
-        if (mMode == BaseActionMode.SELECTED_CLICK_OR_MOVE
-            || mMode == BaseActionMode.SELECT
-            || mMode == BaseActionMode.MOVE) {
-          return singleFingerMove(distance[0], distance[1]);
-        }
-        return false;
+        Log.d(TAG, "singleFingerScroll |||||||||| " +
+            "distanceX:" + distanceXY[0] + "distanceY:" + distanceXY[1] +
+            ",event:" + event + ",scrolledElement:" + scrolledElement +
+            ",selectedElement:" + mSelectedElement);
+        return true;
       }
       
       @Override
@@ -145,11 +162,27 @@ public class ElementContainerView extends AbsoluteLayout {
       }
       
       @Override
-      public boolean onSingleTapUp(MotionEvent e) {
-        if (mIsInDoubleFinger) {
-          return false;
+      public boolean onSingleTapUp(MotionEvent event) {
+        WsElement clickedElement = getElementFromMotionEvent(event);
+        Log.d(TAG, "onSingleTapUp |||||||||| clickedElement:" + clickedElement + ",mSelectedElement:" + mSelectedElement);
+        if (mSelectedElement != null) {
+          if (WsElement.isSameElement(clickedElement, mSelectedElement)) {
+            upTapSelectElementAction(event);
+          } else {
+            if (clickedElement == null) {
+              upTapBlank(event);
+            } else {
+              upTapUnSelectElementAction(event, clickedElement);
+            }
+          }
+        } else {
+          if (clickedElement == null) {
+            upTapBlank(event);
+          } else {
+            upTapUnSelectElementAction(event, clickedElement);
+          }
         }
-        return singleFingerUp(e);
+        return true;
       }
     });
     
@@ -184,90 +217,6 @@ public class ElementContainerView extends AbsoluteLayout {
     });
   }
   
-  private boolean singleFingerDown(MotionEvent e) {
-    final float x = e.getX(), y = e.getY();
-    mMode = BaseActionMode.SELECTED_CLICK_OR_MOVE;
-    WsElement clickedElement = findElementByPosition(x, y);
-    
-    Log.d(TAG, "singleFingerDown |||||||||| x:" + x + ",y:" + y + ",clickedElement:" + clickedElement + ",mSelectedElement:" + mSelectedElement);
-    if (mSelectedElement != null) {
-      if (WsElement.isSameElement(clickedElement,
-          mSelectedElement)) {
-        boolean result = downSelectTapOtherAction(e);
-        if (result) {
-          Log.d(TAG, "singleFingerDown other action");
-          return true;
-        }
-        if (mSelectedElement.isInWholeDecoration(x, y)) {
-          mMode = BaseActionMode.SELECTED_CLICK_OR_MOVE;
-          Log.d(TAG, "singleFingerDown SELECTED_CLICK_OR_MOVE");
-          return true;
-        }
-        Log.e(TAG, "singleFingerDown error not action");
-        return false;
-      } else {
-        if (clickedElement == null) {
-          mMode = BaseActionMode.SINGLE_TAP_BLANK_SCREEN;
-          Log.d(TAG, "singleFingerDown SINGLE_TAP_BLANK_SCREEN");
-        } else {
-          mMode = BaseActionMode.SELECT;
-          unSelectElement();
-          selectElement(clickedElement);
-          update();
-          Log.d(TAG, "singleFingerDown unSelect old element, select new element");
-        }
-        return true;
-      }
-    } else {
-      if (clickedElement != null) {
-        mMode = BaseActionMode.SELECT;
-        selectElement(clickedElement);
-        update();
-        Log.d(TAG, "singleFingerDown select new element");
-      } else {
-        mMode = BaseActionMode.SINGLE_TAP_BLANK_SCREEN;
-        Log.d(TAG, "singleFingerDown SINGLE_TAP_BLANK_SCREEN");
-      }
-      return true;
-    }
-  }
-  
-  private boolean singleFingerMove(float distanceX, float distanceY) {
-    if (mSelectedElement == null) {
-      Log.e(TAG, "singleFingerMove error no selected element");
-      return false;
-    }
-    
-    if (mMode == BaseActionMode.SELECTED_CLICK_OR_MOVE || mMode == BaseActionMode.SELECT) {
-      singleFingerMoveStart(distanceX, distanceY);
-    } else {
-      singleFingerMoveProcess(distanceX, distanceY);
-    }
-    update();
-    mMode = BaseActionMode.MOVE;
-    Log.d(TAG,
-        "singleFingerMove move |||||||||| distanceX:" + distanceX + "distanceY:"
-            + distanceY);
-    return true;
-    
-  }
-  
-  private boolean singleFingerUp(MotionEvent e) {
-    Log.d(TAG, "singleFingerUp ||||||||||  x:" + e.getX() + ",y:" + e.getY());
-    switch (mMode) {
-      case SELECTED_CLICK_OR_MOVE:
-        selectedClick(e);
-        update();
-        return true;
-      case SINGLE_TAP_BLANK_SCREEN:
-        onClickBlank();
-        return true;
-      default:
-        Log.d(TAG, "singleFingerUp other action");
-        return false;
-    }
-  }
-  
   private void doubleFingerScaleAndRotate(MultiTouchGestureDetector detector) {
     if (mSelectedElement == null) {
       Log.e(TAG, "doubleFingerScaleAndRotate error no select element");
@@ -296,16 +245,15 @@ public class ElementContainerView extends AbsoluteLayout {
             + deltaRotate + ",deltaScale:" + detector.getScale());
   }
   
+  private WsElement getElementFromMotionEvent(MotionEvent event) {
+    final float x = event.getX(), y = event.getY();
+    return findElementByPosition(x, y);
+  }
+  
   @Override
-  public boolean dispatchTouchEvent(MotionEvent ev) {
-    if (mSelectedElement != null && mSelectedElement.isShowingViewResponseSelectedClick()) {
-      if (ev.getAction() == MotionEvent.ACTION_DOWN) {
-        mUpDownMotionEvent[0] = copyMotionEvent(ev);
-      } else if (ev.getAction() == MotionEvent.ACTION_UP) {
-        mUpDownMotionEvent[1] = copyMotionEvent(ev);
-      }
-    }
-    return super.dispatchTouchEvent(ev);
+  public boolean dispatchTouchEvent(MotionEvent event) {
+    callContainerWorker(containerWorker -> containerWorker.dispatchTouchEvent(event));
+    return super.dispatchTouchEvent(event);
   }
   
   @Override
@@ -342,43 +290,12 @@ public class ElementContainerView extends AbsoluteLayout {
       autoUnSelectDecoration();
     }
     
-    if (event.getAction() == MotionEvent.ACTION_UP) {
-      boolean result = upSelectTapOtherAction(event);
-      if (result) {
-        return true;
-      }
-      
-      if (mMode == BaseActionMode.MOVE) {
-        singleFingerMoveEnd();
-      }
-    }
     return mDetector.onTouchEvent(event);
   }
   // --------------------------------------- 手势操作结束 ---------------------------------------
   
   
-  // --------------------------------------- 子类手势复写开始 ---------------------------------------
-  protected void singleFingerMoveStart(float distanceX, float distanceY) {
-    mSelectedElement.onSingleFingerMoveStart();
-    callListener(elementActionListener -> elementActionListener
-        .onSingleFingerMoveStart(mSelectedElement));
-    Log.d(TAG, "singleFingerMoveStart move start |||||||||| distanceX:" + distanceX + ",distanceY:" + distanceY);
-  }
-  
-  protected void singleFingerMoveProcess(float distanceX, float distanceY) {
-    mSelectedElement.onSingleFingerMoveProcess(-distanceX, -distanceY);
-    callListener(elementActionListener -> elementActionListener
-        .onSingleFingerMoveProcess(mSelectedElement));
-    Log.d(TAG, "singleFingerMoveStart move progress |||||||||| distanceX:" + distanceX + ",distanceY:" + distanceY);
-  }
-  
-  protected void singleFingerMoveEnd() {
-    callListener(elementActionListener -> elementActionListener
-        .onSingleFingerMoveEnd(mSelectedElement));
-    mSelectedElement.onSingleFingerMoveEnd();
-    Log.d(TAG, "singleFingerMoveEnd move end");
-  }
-  
+  // --------------------------------------- 手势覆写开始 ---------------------------------------
   protected void doubleFingerScaleAndRotateStart(float deltaRotate, float deltaScale) {
     mMode = BaseActionMode.DOUBLE_FINGER_SCALE_AND_ROTATE;
     mSelectedElement.onDoubleFingerScaleAndRotateStart(deltaRotate, deltaScale);
@@ -410,44 +327,142 @@ public class ElementContainerView extends AbsoluteLayout {
     return true;
   }
   
-  protected void onClickBlank() {
-    callListener(elementActionListener -> elementActionListener
-        .onSingleTapBlankScreen(mSelectedElement));
-    Log.d(TAG, "onClickBlank");
+  /**
+   * down 事件落在了选中的 element 中
+   *
+   * @param event
+   */
+  protected void downTapSelectElementAction(@NonNull MotionEvent event) {
+    if (downTapSelectElementPreAction(event)) {
+      Log.d(TAG, "downTapSelectElementAction downTapSelectElementPreAction");
+    } else {
+      callContainerWorker(containerWorker -> containerWorker.downTapSelectElementAction(event));
+      Log.d(TAG, "downTapSelectElementAction SELECTED_CLICK_OR_MOVE");
+    }
   }
   
   /**
-   * 按下了已经选中的元素，如果子类中有操作的话可以给它，优先级最高
+   * down 事件落在了选中的 element 中，优先调用的方法
    *
    * @return
    */
-  protected boolean downSelectTapOtherAction(@NonNull MotionEvent event) {
-    Log.d(TAG, "downSelectTapOtherAction |||||||||| event:" + event);
+  protected boolean downTapSelectElementPreAction(@NonNull MotionEvent event) {
+    Log.d(TAG, "downTapSelectElementPreAction |||||||||| event:" + event);
+    callContainerWorker(containerWorker -> containerWorker.downTapSelectElementPreAction(event));
     return false;
   }
   
   /**
-   * 滑动已经选中的元素，如果子类中有操作的话可以给它，优先级最高
+   * down 事件落在了空白的区域
    *
-   * @param event    当前的触摸事件
-   * @param distance size 为 2，里面分别为 x 轴的 delta 位移，和 y 轴的 delta 位移
+   * @param event
+   */
+  protected void downTapBlank(@NonNull MotionEvent event) {
+    Log.d(TAG, "downTapBlank |||||||||| event:" + event);
+    callContainerWorker(containerWorker -> containerWorker.downTapBlank(event));
+  }
+  
+  /**
+   * down 事件落在了某个没有选中的 element 中
+   *
+   * @param event
+   * @param clickedElement
+   */
+  @CallSuper
+  protected void downTapUnSelectElementAction(@NonNull MotionEvent event, WsElement clickedElement) {
+    Log.d(TAG, "downTapUnSelectElementAction |||||||||| event:" + event + ",clickedElement:" + clickedElement);
+    callContainerWorker(containerWorker -> containerWorker.downTapUnSelectElementAction(event, clickedElement));
+  }
+  
+  /**
+   * scroll 事件落在了选中的 element 中
+   *
+   * @param event      当前的触摸事件
+   * @param distanceXY size 为 2，里面分别为 x 轴的 delta 位移，和 y 轴的 delta 位移
    * @return
    */
-  protected boolean scrollSelectTapOtherAction(@NonNull MotionEvent event, float[] distance) {
-    Log.d(TAG, "scrollSelectTapOtherAction |||||||||| event:" + event + ",distanceX:" + distance[0] + ",distanceY:" + distance[1]);
+  protected void scrollTapSelectElementAction(@NonNull MotionEvent event, float[] distanceXY) {
+    if (scrollTapSelectElementPreAction(event, distanceXY)) {
+      Log.i(TAG, "scrollTapSelectElementAction scrollTapSelectElementPreAction");
+    } else {
+      callContainerWorker(containerWorker -> containerWorker.scrollTapSelectElementAction(event, distanceXY));
+    }
+  }
+  
+  /**
+   * scroll 事件落在了选中的 element 中，优先调用的方法
+   *
+   * @param event      当前的触摸事件
+   * @param distanceXY size 为 2，里面分别为 x 轴的 delta 位移，和 y 轴的 delta 位移，更改了其中的数据可以影响移动
+   * @return
+   */
+  protected boolean scrollTapSelectElementPreAction(@NonNull MotionEvent event, float[] distanceXY) {
+    Log.d(TAG, "scrollTapSelectElementPreAction |||||||||| event:" + event + ",distanceX:" + distanceXY[0] + ",distanceY:" + distanceXY[1]);
+    callContainerWorker(containerWorker -> containerWorker.scrollTapSelectElementPreAction(event, distanceXY));
     return false;
   }
   
   /**
-   * 抬起已经选中的元素，如果子类中有操作的话可以给它，优先级最高
+   * scroll 事件落在了选中的 element 之外
    *
+   * @param event      当前的触摸事件
+   * @param distanceXY size 为 2，里面分别为 x 轴的 delta 位移，和 y 轴的 delta 位移
    * @return
    */
-  protected boolean upSelectTapOtherAction(@NonNull MotionEvent event) {
-    Log.d(TAG, "upSelectTapOtherAction |||||||||| event:" + event);
+  protected void scrollTapUnSelectElementAction(@NonNull MotionEvent event, float[] distanceXY) {
+    callContainerWorker(containerWorker -> containerWorker.scrollTapUnSelectElementAction(event, distanceXY));
+    Log.d(TAG, "scrollTapUnSelectElementAction |||||||||| event:" + event + ",distanceX:" + distanceXY[0] + ",distanceY:" + distanceXY[1]);
+  }
+  
+  /**
+   * up 事件落在了选中的 element 中
+   *
+   * @param event
+   */
+  protected void upTapSelectElementAction(@NonNull MotionEvent event) {
+    if (upTapSelectElementPreAction(event)) {
+      Log.d(TAG, "upTapSelectElementAction upTapSelectElementPreAction");
+    } else {
+      callContainerWorker(containerWorker -> containerWorker.downTapSelectElementAction(event));
+      Log.d(TAG, "downTapSelectElementAction SELECTED_CLICK_OR_MOVE");
+    }
+  }
+  
+  /**
+   * up 事件落在选中的 element 中，优先调用的方法
+   *
+   * @param event
+   * @return
+   */
+  protected boolean upTapSelectElementPreAction(MotionEvent event) {
+    callContainerWorker(containerWorker -> containerWorker.upTapSelectElementPreAction(event));
+    Log.d(TAG, "upTapSelectElementPreAction |||||||||| event:" + event);
     return false;
   }
-  // --------------------------------------- 子类手势复写结束 ---------------------------------------
+  
+  /**
+   * up 事件落在了空白的区域
+   *
+   * @param event
+   */
+  protected void upTapBlank(@NonNull MotionEvent event) {
+    Log.d(TAG, "upTapBlank |||||||||| event:" + event);
+    callContainerWorker(containerWorker -> containerWorker.upTapBlank(event));
+  }
+  
+  /**
+   * up 事件落在了某个没有选中的 element 中
+   *
+   * @param event
+   * @param clickedElement
+   */
+  @CallSuper
+  protected void upTapUnSelectElementAction(@NonNull MotionEvent event, WsElement clickedElement) {
+    Log.d(TAG, "upTapUnSelectElementAction |||||||||| event:" + event + ",clickedElement:" + clickedElement);
+    callContainerWorker(containerWorker -> containerWorker.upTapUnSelectElementAction(event, clickedElement));
+  }
+  
+  // --------------------------------------- 手势覆写开始 ---------------------------------------
   
   /**
    * 添加一个监听器
@@ -663,53 +678,6 @@ public class ElementContainerView extends AbsoluteLayout {
   }
   
   /**
-   * 选中之后再次点击选中的元素
-   */
-  protected void selectedClick(MotionEvent e) {
-    if (mSelectedElement == null) {
-      Log.w(TAG, "selectedClick selected element is null");
-    } else {
-      if (mSelectedElement.isShowingViewResponseSelectedClick()) {
-        mUpDownMotionEvent[0].setLocation(
-            mUpDownMotionEvent[0].getX() - mSelectedElement.mElementShowingView.getLeft(),
-            mUpDownMotionEvent[0].getY() - mSelectedElement.mElementShowingView.getTop());
-        rotateMotionEvent(mUpDownMotionEvent[0], mSelectedElement);
-        
-        mUpDownMotionEvent[1].setLocation(
-            mUpDownMotionEvent[1].getX() - mSelectedElement.mElementShowingView.getLeft(),
-            mUpDownMotionEvent[1].getY() - mSelectedElement.mElementShowingView.getTop());
-        rotateMotionEvent(mUpDownMotionEvent[1], mSelectedElement);
-        mSelectedElement.mElementShowingView.dispatchTouchEvent(mUpDownMotionEvent[0]);
-        mSelectedElement.mElementShowingView.dispatchTouchEvent(mUpDownMotionEvent[1]);
-      } else {
-        mSelectedElement.selectedClick(e);
-      }
-      callListener(
-          elementActionListener -> elementActionListener
-              .onSelectedClick(mSelectedElement));
-    }
-  }
-  
-  /**
-   * 将 @event 旋转 @element 中的角度
-   *
-   * @param event
-   * @param element
-   */
-  protected void rotateMotionEvent(MotionEvent event, WsElement element) {
-    if (element.mRotate != 0) {
-      Matrix mInvertMatrix = new Matrix();
-      mInvertMatrix.postRotate(
-          -element.mRotate,
-          element.mElementShowingView.getWidth() / 2,
-          element.mElementShowingView.getHeight() / 2);
-      float[] point = new float[]{event.getX(), event.getY()};
-      mInvertMatrix.mapPoints(point);
-      event.setLocation(point[0], point[1]);
-    }
-  }
-  
-  /**
    * 一定的时间之后自动取消当前元素的选中
    */
   public void autoUnSelectDecoration() {
@@ -726,6 +694,11 @@ public class ElementContainerView extends AbsoluteLayout {
     removeCallbacks(mUnSelectRunnable);
   }
   
+  // --------------------------------------- Element 操作结束 ---------------------------------------
+  
+  
+  // --------------------------------------- getter setter 开始 ---------------------------------------
+  
   /**
    * 是否需要自动取消选中
    *
@@ -735,16 +708,35 @@ public class ElementContainerView extends AbsoluteLayout {
     mIsNeedAutoUnSelect = needAutoUnSelect;
   }
   
-  // --------------------------------------- Element 操作结束 ---------------------------------------
+  public void setMode(BaseActionMode mode) {
+    mMode = mode;
+  }
+  
+  public BaseActionMode getMode() {
+    return mMode;
+  }
+  
+  // --------------------------------------- getter setter 结束 ---------------------------------------
   
   
   // --------------------------------------- 接口开始 ---------------------------------------
   
-  protected void callListener(Consumer<ElementActionListener> decorationActionListenerConsumer) {
+  public void callListener(Consumer<ElementActionListener> decorationActionListenerConsumer) {
     for (ElementActionListener elementActionListener : mElementActionListenerSet) {
       try {
         decorationActionListenerConsumer.accept(elementActionListener);
       } catch (Exception e) {
+        Log.e(TAG, "callListener error!", e);
+      }
+    }
+  }
+  
+  public void callContainerWorker(Consumer<ContainerWorker> containerWorkerConsumer) {
+    for (ContainerWorker containerWorker : mContainerWorkerSet) {
+      try {
+        containerWorkerConsumer.accept(containerWorker);
+      } catch (Exception e) {
+        Log.e(TAG, "callContainerWorker error!", e);
       }
     }
   }
@@ -764,32 +756,6 @@ public class ElementContainerView extends AbsoluteLayout {
      * @param element
      */
     void onDelete(WsElement element);
-    
-    /**
-     * 选中了一个元素之后再次点击该元素触发的事件
-     *
-     * @param element
-     */
-    void onSelectedClick(WsElement element);
-    
-    /**
-     * 选中了元素之后，对元素单指移动开始的回调
-     *
-     * @param element
-     */
-    void onSingleFingerMoveStart(WsElement element);
-    
-    /**
-     * 选中了元素之后，对元素单指移动过程的回调
-     *
-     * @param element
-     */
-    void onSingleFingerMoveProcess(WsElement element);
-    
-    /**
-     * 一次 单指移动操作结束的回调
-     */
-    void onSingleFingerMoveEnd(WsElement element);
     
     /**
      * 选中了元素之后，对元素双指旋转缩放开始的回调
@@ -825,13 +791,6 @@ public class ElementContainerView extends AbsoluteLayout {
      * @param element
      */
     void onUnSelect(WsElement element);
-    
-    /**
-     * 点击空白区域
-     *
-     * @param element
-     */
-    void onSingleTapBlankScreen(WsElement element);
   }
   
   public static class DefaultElementActionListener implements ElementActionListener {
@@ -847,21 +806,6 @@ public class ElementContainerView extends AbsoluteLayout {
     }
     
     @Override
-    public void onSelectedClick(WsElement element) {
-      Log.d(TAG, "onSelectedClick");
-    }
-    
-    @Override
-    public void onSingleFingerMoveStart(WsElement element) {
-      Log.d(TAG, "onSingleFingerMoveStart");
-    }
-    
-    @Override
-    public void onSingleFingerMoveProcess(WsElement element) {
-      Log.d(TAG, "onSingleFingerMoveProcess");
-    }
-    
-    @Override
     public void onSelect(WsElement element) {
       Log.d(TAG, "onSelect");
     }
@@ -869,11 +813,6 @@ public class ElementContainerView extends AbsoluteLayout {
     @Override
     public void onUnSelect(WsElement element) {
       Log.d(TAG, "onUnSelect");
-    }
-    
-    @Override
-    public void onSingleFingerMoveEnd(WsElement element) {
-      Log.d(TAG, "onSingleFingerMoveEnd");
     }
     
     @Override
@@ -890,15 +829,9 @@ public class ElementContainerView extends AbsoluteLayout {
     public void onDoubleFingerScaleRotateEnd(WsElement element) {
       Log.d(TAG, "onDoubleFingerScaleRotateEnd");
     }
-    
-    @Override
-    public void onSingleTapBlankScreen(WsElement element) {
-      Log.d(TAG, "onSingleTapBlankScreen");
-    }
   }
   
   public interface Consumer<T> {
-    
     void accept(T t);
   }
   
@@ -906,7 +839,6 @@ public class ElementContainerView extends AbsoluteLayout {
     MOVE,
     SELECT,
     SELECTED_CLICK_OR_MOVE,
-    SINGLE_TAP_BLANK_SCREEN,
     DOUBLE_FINGER_SCALE_AND_ROTATE,
   }
   // --------------------------------------- 接口结束 ---------------------------------------

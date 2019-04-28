@@ -1,4 +1,4 @@
-package com.whensunset.sticker;
+package com.whensunset.sticker.container;
 
 import android.content.Context;
 import android.graphics.PointF;
@@ -9,6 +9,8 @@ import android.support.annotation.RequiresApi;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
+
+import com.whensunset.sticker.widget.RuleLineView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -82,20 +84,20 @@ public class RuleLineElementContainerView extends DecorationElementContainerView
   }
   
   @Override
-  protected boolean scrollSelectTapOtherAction(@NonNull MotionEvent event, float[] distance) {
+  protected boolean scrollTapSelectElementPreAction(@NonNull MotionEvent event, float[] distanceXY) {
     if (mSelectedElement == null) {
-      Log.w(TAG, "scrollSelectTapOtherAction mSelectedElement is null");
-      return super.scrollSelectTapOtherAction(event, distance);
+      Log.w(TAG, "scrollTapSelectElementPreAction mSelectedElement is null");
+      return super.scrollTapSelectElementPreAction(event, distanceXY);
     }
     
-    boolean xCanCheckRule = (Math.abs(distance[0]) <= IS_CHECK_X_RULE_THRESHOLD);
-    boolean yCanCheckRule = (Math.abs(distance[1]) <= IS_CHECK_Y_RULE_THRESHOLD);
+    boolean xCanCheckRule = (Math.abs(distanceXY[0]) <= IS_CHECK_X_RULE_THRESHOLD);
+    boolean yCanCheckRule = (Math.abs(distanceXY[1]) <= IS_CHECK_Y_RULE_THRESHOLD);
     boolean xInRule = false;
     boolean yInRule = false;
     
     float xRulePercent = 0;
     if (xCanCheckRule) {
-      xRulePercent = checkElementInXRule(event, distance);
+      xRulePercent = checkElementInXRule(event, distanceXY);
       xInRule = (xRulePercent != NOT_IN_RULE);
       if (xInRule) {
         RuleLineView.RuleLine xRuleLine = new RuleLineView.RuleLine();
@@ -103,18 +105,18 @@ public class RuleLineElementContainerView extends DecorationElementContainerView
         xRuleLine.mEndPoint = new PointF(xRulePercent * getWidth(), getHeight());
         mRuleLines[0] = xRuleLine;
         
-        if (mXRuleTotalAbsorption == 0 && distance[0] != 0) {
+        if (mXRuleTotalAbsorption == 0 && distanceXY[0] != 0) {
           mVibrator.vibrate(VIBRATOR_DURATION_IN_RULE);
-          Log.d(TAG, "scrollSelectTapOtherAction x vibrate");
+          Log.d(TAG, "scrollTapSelectElementPreAction x vibrate");
         }
-        mXRuleTotalAbsorption += distance[0];
+        mXRuleTotalAbsorption += distanceXY[0];
         if (Math.abs(mXRuleTotalAbsorption) >= X_RULE_TOTAL_ABSORPTION_MAX) {
-          Log.d(TAG, "scrollSelectTapOtherAction clear mXRuleTotalAbsorption:" + mXRuleTotalAbsorption);
+          Log.d(TAG, "scrollTapSelectElementPreAction clear mXRuleTotalAbsorption:" + mXRuleTotalAbsorption);
           mXRuleTotalAbsorption = 0;
-          distance[0] += (distance[0] < 0 ? -2 * CHECK_X_IS_IN_RULE_THRESHOLD : 2 * CHECK_X_IS_IN_RULE_THRESHOLD);
+          distanceXY[0] += (distanceXY[0] < 0 ? -2 * CHECK_X_IS_IN_RULE_THRESHOLD : 2 * CHECK_X_IS_IN_RULE_THRESHOLD);
         } else {
-          distance[0] = 0;
-          Log.d(TAG, "scrollSelectTapOtherAction add mXRuleTotalAbsorption |||||||||| mXRuleTotalAbsorption:" + mXRuleTotalAbsorption);
+          distanceXY[0] = 0;
+          Log.d(TAG, "scrollTapSelectElementPreAction add mXRuleTotalAbsorption |||||||||| mXRuleTotalAbsorption:" + mXRuleTotalAbsorption);
         }
       } else {
         mRuleLines[0] = null;
@@ -126,7 +128,7 @@ public class RuleLineElementContainerView extends DecorationElementContainerView
     
     float yRulePercent = 0;
     if (yCanCheckRule) {
-      yRulePercent = checkElementInYRule(event, distance);
+      yRulePercent = checkElementInYRule(event, distanceXY);
       yInRule = (yRulePercent != NOT_IN_RULE);
       if (yInRule) {
         RuleLineView.RuleLine yRuleLine = new RuleLineView.RuleLine();
@@ -134,18 +136,18 @@ public class RuleLineElementContainerView extends DecorationElementContainerView
         yRuleLine.mEndPoint = new PointF(getWidth(), yRulePercent * getHeight());
         mRuleLines[1] = yRuleLine;
         
-        if (mYRuleTotalAbsorption == 0 && distance[1] != 0) {
+        if (mYRuleTotalAbsorption == 0 && distanceXY[1] != 0) {
           mVibrator.vibrate(VIBRATOR_DURATION_IN_RULE);
-          Log.d(TAG, "scrollSelectTapOtherAction y vibrate");
+          Log.d(TAG, "scrollTapSelectElementPreAction y vibrate");
         }
-        mYRuleTotalAbsorption += distance[1];
+        mYRuleTotalAbsorption += distanceXY[1];
         if (Math.abs(mYRuleTotalAbsorption) >= Y_RULE_TOTAL_ABSORPTION_MAX) {
-          Log.d(TAG, "scrollSelectTapOtherAction clear mYRuleTotalAbsorption:" + mYRuleTotalAbsorption);
+          Log.d(TAG, "scrollTapSelectElementPreAction clear mYRuleTotalAbsorption:" + mYRuleTotalAbsorption);
           mYRuleTotalAbsorption = 0;
-          distance[1] += (distance[1] < 0 ? -2 * CHECK_Y_IS_IN_RULE_THRESHOLD : 2 * CHECK_Y_IS_IN_RULE_THRESHOLD);
+          distanceXY[1] += (distanceXY[1] < 0 ? -2 * CHECK_Y_IS_IN_RULE_THRESHOLD : 2 * CHECK_Y_IS_IN_RULE_THRESHOLD);
         } else {
-          distance[1] = 0;
-          Log.d(TAG, "scrollSelectTapOtherAction add mYRuleTotalAbsorption |||||||||| mYRuleTotalAbsorption:" + mYRuleTotalAbsorption);
+          distanceXY[1] = 0;
+          Log.d(TAG, "scrollTapSelectElementPreAction add mYRuleTotalAbsorption |||||||||| mYRuleTotalAbsorption:" + mYRuleTotalAbsorption);
         }
       } else {
         mRuleLines[1] = null;
@@ -161,13 +163,13 @@ public class RuleLineElementContainerView extends DecorationElementContainerView
     } else {
       mRuleLineView.setVisibility(GONE);
     }
-    return super.scrollSelectTapOtherAction(event, distance);
+    return super.scrollTapSelectElementPreAction(event, distanceXY);
   }
   
   @Override
-  protected boolean upSelectTapOtherAction(@NonNull MotionEvent event) {
+  protected boolean upTapSelectElementPreAction(@NonNull MotionEvent event) {
     mRuleLineView.setVisibility(GONE);
-    return super.upSelectTapOtherAction(event);
+    return super.upTapSelectElementPreAction(event);
   }
   
   /**
