@@ -6,6 +6,7 @@ import android.util.Log;
 import android.view.MotionEvent;
 
 import com.whensunset.sticker.container.ElementContainerView;
+import com.whensunset.sticker.container.worker.DefaultContainerWorker;
 import com.whensunset.sticker.element.WsElement;
 
 import static com.whensunset.sticker.CommonUtil.copyMotionEvent;
@@ -16,7 +17,7 @@ import static com.whensunset.sticker.CommonUtil.copyMotionEvent;
  */
 
 public class SelectedClickElementWorker extends DefaultContainerWorker {
-  private static final String TAG = "SCEWorker";
+  private static final String TAG = "WhenSunset:SCEW";
   
   private MotionEvent[] mUpDownMotionEvent = new MotionEvent[2]; // 储存当前 up down 事件，以便在需要的时候进行事件分发
   

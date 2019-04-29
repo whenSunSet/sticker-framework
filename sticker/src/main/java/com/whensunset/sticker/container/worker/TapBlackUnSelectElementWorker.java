@@ -13,7 +13,7 @@ import com.whensunset.sticker.element.WsElement;
  */
 
 public class TapBlackUnSelectElementWorker extends DefaultContainerWorker {
-  private static final String TAG = "TBUSEWorker";
+  private static final String TAG = "WhenSunset:TBUSEW";
   
   public TapBlackUnSelectElementWorker(ElementContainerView elementContainerView) {
     super(elementContainerView);

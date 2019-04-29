@@ -39,6 +39,7 @@ public class MultiTouchGestureDetector {
   private float mInitialFocusX;
   private float mInitialFocusY;
   private int mTouchSlopSquare;
+  private MotionEvent mMotionEvent;
   
   /**
    * Creates a MultiTouchGestureDetector with the supplied listener.
@@ -75,10 +76,14 @@ public class MultiTouchGestureDetector {
    * rest of the MotionEvents in this event stream.
    */
   public boolean onTouchEvent(MotionEvent event) {
+    mMotionEvent = event;
     mCurrTime = event.getEventTime();
     
     final int action = event.getActionMasked();
     final int count = event.getPointerCount();
+    if (count <= 1) {
+      return false;
+    }
     
     final boolean touchComplete =
         action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL;
@@ -340,6 +345,10 @@ public class MultiTouchGestureDetector {
    */
   public long getEventTime() {
     return mCurrTime;
+  }
+  
+  public MotionEvent getMotionEvent() {
+    return mMotionEvent;
   }
   
   /**

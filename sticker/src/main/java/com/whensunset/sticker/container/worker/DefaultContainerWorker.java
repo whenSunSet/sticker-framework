@@ -3,6 +3,7 @@ package com.whensunset.sticker.container.worker;
 import android.support.annotation.NonNull;
 import android.view.MotionEvent;
 
+import com.whensunset.sticker.MultiTouchGestureDetector;
 import com.whensunset.sticker.container.ElementContainerView;
 import com.whensunset.sticker.element.WsElement;
 
@@ -19,6 +20,26 @@ public abstract class DefaultContainerWorker extends ContainerWorker {
   
   @Override
   public void viewLayoutComplete() {
+  
+  }
+  
+  @Override
+  public void addElement(WsElement element) {
+  
+  }
+  
+  @Override
+  public void deleteElement(WsElement element) {
+  
+  }
+  
+  @Override
+  public void selectElement(WsElement element) {
+  
+  }
+  
+  @Override
+  public void unSelectElement() {
   
   }
   
@@ -48,27 +69,11 @@ public abstract class DefaultContainerWorker extends ContainerWorker {
   }
   
   @Override
-  public boolean scrollTapSelectElementPreAction(@NonNull MotionEvent event, float[] distanceXY) {
-    return false;
+  public void scrollTapSelectElementPreAction(@NonNull MotionEvent event, float[] distanceXY) {
   }
   
   @Override
-  public void scrollTapUnSelectElementAction(@NonNull MotionEvent event, float[] distanceXY) {
-  
-  }
-  
-  @Override
-  public void singleFingerMoveStart(float distanceX, float distanceY) {
-  
-  }
-  
-  @Override
-  public void singleFingerMoveProcess(float distanceX, float distanceY) {
-  
-  }
-  
-  @Override
-  public void singleFingerMoveEnd(MotionEvent event) {
+  public void scrollTapOutOfSelectElementAction(@NonNull MotionEvent event, float[] distanceXY) {
   
   }
   
@@ -88,8 +93,47 @@ public abstract class DefaultContainerWorker extends ContainerWorker {
   }
   
   @Override
-  public boolean upTapSelectElementPreAction(MotionEvent event) {
-    return false;
+  public void upTapSelectElementPreAction(MotionEvent event) {
+  }
+  
+  @Override
+  public void doubleFingerInSelectElementStart(MultiTouchGestureDetector detector) {
+  
+  }
+  
+  @Override
+  public void doubleFingerNotInSelectElementStart(MultiTouchGestureDetector detector) {
+  
+  }
+  
+  @Override
+  public void doubleFingerScaleAndRotateSelectElementAction(MultiTouchGestureDetector detector) {
+  
+  }
+  
+  @Override
+  public void doubleFingerScaleAndRotateSelectElementPreAction(MultiTouchGestureDetector detector) {
+  
+  }
+  
+  @Override
+  public void doubleFingerScaleAndRotateUnSelectElementAction(MultiTouchGestureDetector detector) {
+  
+  }
+  
+  @Override
+  public void doubleFingerInSelectElementEnd(MultiTouchGestureDetector detector) {
+  
+  }
+  
+  @Override
+  public void doubleFingerNotInSelectElementEnd(MultiTouchGestureDetector detector) {
+  
+  }
+  
+  @Override
+  public void onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+  
   }
   
   @Override

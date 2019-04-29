@@ -1,74 +1,67 @@
-package com.whensunset.sticker.container;
+package com.whensunset.sticker.container.worker;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
-import android.content.Context;
 import android.graphics.RectF;
-import android.os.Build;
 import android.support.annotation.NonNull;
-import android.support.annotation.RequiresApi;
-import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+import android.widget.AbsoluteLayout;
 import android.widget.ImageView;
 
 import com.whensunset.sticker.R;
+import com.whensunset.sticker.container.ElementContainerView;
 import com.whensunset.sticker.element.AnimationElement;
 import com.whensunset.sticker.element.DecorationElement;
+import com.whensunset.sticker.element.WsElement;
+
+import static android.view.View.GONE;
+import static android.view.View.VISIBLE;
+import static java.security.AccessController.getContext;
 
 /**
- * Created by whensunset on 2019/4/14.
+ * Created by whensunset on 2019/4/29.
+ * 垃圾桶的 worker
  */
 
-public class TrashElementContainerView extends RuleLineElementContainerView {
-  private static final String TAG = "heshixi:MTTECV";
+public class TrashWorker extends DefaultContainerWorker {
+  private static final String TAG = "heshixi:TrashWorker";
   private static final float TRASH_RECT_WIDTH_PERCENT = 0.13f;// 垃圾桶区域长宽占 view 的宽的百分比
   private static final float TRASH_RECT_MARGIN_TOP = 0.03f;// 垃圾桶区域距离 view 顶部距离占 view 长的百分比
   private static final long TRASH_VIEW_ANIMATION_DURATION = 100;// 垃圾桶 view 显示和消失的动画的时间
   private static final long ELEMENT_ANIMATION_DURATION = 300;// 元素做动画的时间
   protected static final long VIBRATOR_DURATION_IN_TRASH = 40; // 进入垃圾桶时的震动的时长
   
-  public TrashElementContainerView(Context context) {
-    super(context);
-  }
-  
-  public TrashElementContainerView(Context context, AttributeSet attrs) {
-    super(context, attrs);
-  }
-  
-  public TrashElementContainerView(Context context, AttributeSet attrs, int defStyleAttr) {
-    super(context, attrs, defStyleAttr);
-  }
-  
-  @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
-  public TrashElementContainerView(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
-    super(context, attrs, defStyleAttr, defStyleRes);
-  }
-  
   private RectF mTrashRect = new RectF();
   private View mTrashView;
   private AnimatorSet mTrashViewAnimator;
   private boolean mIsInTrashRect = false;
   
+  public TrashWorker(ElementContainerView elementContainerView) {
+    super(elementContainerView);
+  }
+  
   @Override
-  protected void viewLayoutComplete() {
+  public void viewLayoutComplete() {
     super.viewLayoutComplete();
-    float trashWidth = TRASH_RECT_WIDTH_PERCENT * getWidth();
+    float containerViewWidth = mElementContainerView.getWidth();
+    float containerViewHeight = mElementContainerView.getHeight();
+    float trashWidth = TRASH_RECT_WIDTH_PERCENT * containerViewWidth;
     mTrashRect.set(
-        (getWidth() - trashWidth) / 2,
-        TRASH_RECT_MARGIN_TOP * getHeight(),
-        (getWidth() + trashWidth) / 2,
-        TRASH_RECT_MARGIN_TOP * getHeight() + trashWidth);
+        (containerViewWidth - trashWidth) / 2,
+        TRASH_RECT_MARGIN_TOP * containerViewHeight,
+        (containerViewWidth + trashWidth) / 2,
+        TRASH_RECT_MARGIN_TOP * containerViewHeight + trashWidth);
     mNoRuleRectList.add(new RectF(
         mTrashRect.left - mTrashRect.width() / 2,
         mTrashRect.top - mTrashRect.height() / 2,
         mTrashRect.right + mTrashRect.width() / 2,
         mTrashRect.bottom + mTrashRect.height() / 2));
     mTrashView = initTrashView();
-    addView(mTrashView);
+    mElementContainerView.addView(mTrashView);
     mTrashView.setVisibility(GONE);
   }
   
@@ -79,8 +72,8 @@ public class TrashElementContainerView extends RuleLineElementContainerView {
    */
   @NonNull
   protected View initTrashView() {
-    ImageView trashView = new ImageView(getContext());
-    LayoutParams layoutParams = new LayoutParams((int) mTrashRect.width(), (int) mTrashRect.height(), (int) mTrashRect.left, (int) mTrashRect.top);
+    ImageView trashView = new ImageView(mElementContainerView.getContext());
+    AbsoluteLayout.LayoutParams layoutParams = new AbsoluteLayout.LayoutParams((int) mTrashRect.width(), (int) mTrashRect.height(), (int) mTrashRect.left, (int) mTrashRect.top);
     trashView.setLayoutParams(layoutParams);
     trashView.setImageResource(R.drawable.default_decoration_trash);
     int padding = (int) (mTrashRect.width() * 0.25);
@@ -89,14 +82,15 @@ public class TrashElementContainerView extends RuleLineElementContainerView {
   }
   
   @Override
-  protected boolean scrollTapSelectElementPreAction(@NonNull MotionEvent event, float[] distanceXY) {
-    if (mSelectedElement == null) {
-      Log.w(TAG, "scrollTapSelectElementPreAction mSelectedElement is null");
-      return super.scrollTapSelectElementPreAction(event, distanceXY);
+  public void scrollTapSelectElementPreAction(@NonNull MotionEvent event, float[] distanceXY) {
+    WsElement selectElement = mElementContainerView.getSelectElement();
+    if (selectElement == null) {
+      Log.w(TAG, "scrollTapSelectElementPreAction selectElement is null");
+      return;
     }
-    if (!mSelectedElement.isSingerFingerMove()) {
-      Log.w(TAG, "scrollTapSelectElementPreAction mSelectedElement is not move");
-      return super.scrollTapSelectElementPreAction(event, distanceXY);
+    if (!selectElement.isSingerFingerMove()) {
+      Log.w(TAG, "scrollTapSelectElementPreAction selectElement is not move");
+      return;
     }
     
     boolean isInTrashRect = mTrashRect.contains(event.getX(), event.getY());
@@ -107,50 +101,45 @@ public class TrashElementContainerView extends RuleLineElementContainerView {
       elementLeaveTrash(event);
     }
     mIsInTrashRect = isInTrashRect;
-    return super.scrollTapSelectElementPreAction(event, distanceXY);
   }
   
   @Override
-  protected boolean upTapSelectElementPreAction(@NonNull MotionEvent event) {
+  public void upTapSelectElementPreAction(@NonNull MotionEvent event) {
+    WsElement selectedElement = mElementContainerView.getSelectElement();
     if (mIsInTrashRect) {
-      DecorationElement decorationElement = (DecorationElement) mSelectedElement;
+      DecorationElement decorationElement = (DecorationElement) selectedElement;
       AnimationElement.TransformParam to = new AnimationElement.TransformParam(decorationElement);
       to.mScale = 0f;
       to.mMoveX = 0;
-      to.mMoveY = -1 * (getHeight() / 2 - mTrashRect.top - mTrashRect.height() / 2);
+      to.mMoveY = -1 * (mElementContainerView.getHeight() / 2 - mTrashRect.top - mTrashRect.height() / 2);
       to.mIsNeedLimitScale = false;
       to.mIsNeedLimitXY = false;
-      decorationElement.startElementAnimation(to, () -> deleteElement(mSelectedElement), ELEMENT_ANIMATION_DURATION, false);
+      decorationElement.startElementAnimation(to, () -> deleteElement(selectedElement), ELEMENT_ANIMATION_DURATION, false);
       mIsInTrashRect = false;
       trashViewHide();
-      return true;
     }
-    return super.upTapSelectElementPreAction(event);
   }
   
   @Override
-  protected void doubleFingerScaleAndRotateStart(float deltaRotate, float deltaScale) {
+  public void doubleFingerScaleAndRotateStart(float deltaRotate, float deltaScale) {
     mIsInTrashRect = false;
-    super.doubleFingerScaleAndRotateStart(deltaRotate, deltaScale);
   }
   
-//  @Override
-//  protected void singleFingerMoveStart(float distanceX, float distanceY) {
-//    super.singleFingerMoveStart(distanceX, distanceY);
-//    trashViewShow();
-//  }
-//
-//  @Override
-//  protected void singleFingerMoveEnd(MotionEvent event) {
-//    super.singleFingerMoveEnd(event);
-//    trashViewHide();
-//  }
+  @Override
+  public void singleFingerMoveStart(float distanceX, float distanceY) {
+    trashViewShow();
+  }
+
+  @Override
+  public void singleFingerMoveEnd(MotionEvent event) {
+    trashViewHide();
+  }
   
   /**
    * 元素进入垃圾桶
    */
   protected void elementEnterTrash(@NonNull MotionEvent event) {
-    DecorationElement decorationElement = (DecorationElement) mSelectedElement;
+    DecorationElement decorationElement = (DecorationElement) mElementContainerView.getSelectElement();
     AnimationElement.TransformParam to = new AnimationElement.TransformParam(decorationElement);
     to.mAlpha = 0.3f;
     to.mEnableScale = false;
@@ -158,8 +147,8 @@ public class TrashElementContainerView extends RuleLineElementContainerView {
     to.mEnableMoveX = false;
     to.mEnableMoveY = false;
     decorationElement.startElementAnimation(to, null, ELEMENT_ANIMATION_DURATION, false);
-    mVibrator.vibrate(VIBRATOR_DURATION_IN_TRASH);
-    callListener(elementActionListener ->
+    mElementContainerView.getVibrator().vibrate(VIBRATOR_DURATION_IN_TRASH);
+    mElementContainerView.callListener(elementActionListener ->
         ((TrashElementActionListener) elementActionListener).onEnterInTrashRect());
   }
   
@@ -167,10 +156,10 @@ public class TrashElementContainerView extends RuleLineElementContainerView {
    * 元素离开垃圾桶
    */
   protected void elementLeaveTrash(@NonNull MotionEvent event) {
-    DecorationElement decorationElement = (DecorationElement) mSelectedElement;
+    DecorationElement decorationElement = (DecorationElement) mElementContainerView.getSelectElement();
     decorationElement.restoreToBeforeAnimation(null, ELEMENT_ANIMATION_DURATION, false);
-    mVibrator.vibrate(VIBRATOR_DURATION_IN_TRASH);
-    callListener(elementActionListener ->
+    mElementContainerView.getVibrator().vibrate(VIBRATOR_DURATION_IN_TRASH);
+    mElementContainerView.callListener(elementActionListener ->
         ((TrashElementActionListener) elementActionListener).onLeaveTrashRect());
   }
   
@@ -223,5 +212,10 @@ public class TrashElementContainerView extends RuleLineElementContainerView {
     void onEnterInTrashRect();
     
     void onLeaveTrashRect();
+  }
+  
+  @Override
+  public int getPriority() {
+    return 0;
   }
 }

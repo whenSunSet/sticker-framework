@@ -4,6 +4,7 @@ import android.support.annotation.NonNull;
 import android.view.MotionEvent;
 
 import com.whensunset.sticker.container.ElementContainerView;
+import com.whensunset.sticker.container.worker.DefaultContainerWorker;
 import com.whensunset.sticker.element.WsElement;
 
 /**
@@ -12,7 +13,7 @@ import com.whensunset.sticker.element.WsElement;
  */
 
 public class SelectElementWorker extends DefaultContainerWorker {
-  
+  private static final String TAG = "WhenSunset:SEW";
   public SelectElementWorker(ElementContainerView elementContainerView) {
     super(elementContainerView);
   }

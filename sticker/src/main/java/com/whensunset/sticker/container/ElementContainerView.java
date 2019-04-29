@@ -34,17 +34,11 @@ import java.util.TreeSet;
 
 public abstract class ElementContainerView extends AbsoluteLayout {
   private static final String TAG = "WhenSunset:ECV";
-  // 每个双指旋转事件能进行的最大角度，注意这里限制的是 delta 值，超过了这个值，就丢弃这个事件
-  private static final int DOUBLE_FINGER_ROTATE_THRESHOLD = 45;
   
   private BaseActionMode mMode = BaseActionMode.SELECTED_CLICK_OR_MOVE; // 当前手势所处的模式
   private Rect mEditorRect = new Rect(); // 元素 可绘制的区域，也就是当前 View 的区域
   private GestureDetector mDetector; // 处理单指手势
   private MultiTouchGestureDetector mMultiTouchGestureDetector; // 处理双指手势
-  private boolean mIsInDoubleFinger; // 是否处于双指手势状态
-  protected boolean mIsNeedAutoUnSelect = true; // 是否需要自动取消选中
-  protected long mAutoUnSelectDuration = 2000; // 自动取消选中的时间，默认 2000 毫秒，
-  protected Runnable mUnSelectRunnable = this::unSelectElement;
   protected WsElement mSelectedElement; // 当前选中的 元素
   protected LinkedList<WsElement> mElementList = new LinkedList<>();
   protected Set<ElementActionListener> mElementActionListenerSet = new HashSet<>(); // 监听列表
@@ -65,7 +59,6 @@ public abstract class ElementContainerView extends AbsoluteLayout {
   
   public ElementContainerView(Context context, AttributeSet attrs, int defStyleAttr) {
     super(context, attrs, defStyleAttr);
-    
   }
   
   @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
@@ -100,6 +93,30 @@ public abstract class ElementContainerView extends AbsoluteLayout {
   }
   
   // --------------------------------------- 手势操作开始 ---------------------------------------
+  @Override
+  public boolean dispatchTouchEvent(MotionEvent event) {
+    callContainerWorker(containerWorker -> containerWorker.dispatchTouchEvent(event));
+    return super.dispatchTouchEvent(event);
+  }
+  
+  @Override
+  public boolean onInterceptTouchEvent(MotionEvent event) {
+    return true;
+  }
+  
+  @SuppressLint("ClickableViewAccessibility")
+  @Override
+  public boolean onTouchEvent(@NonNull MotionEvent event) {
+    Log.d(TAG, "initDoubleFingerDetector |||||||||| x0:" + event.getX() + ",y0:" + event.getY());
+    if (mMultiTouchGestureDetector.onTouchEvent(event)) {
+      Log.d(TAG, "onTouchEvent double finger event");
+      return true;
+    } else {
+      Log.d(TAG, "onTouchEvent single finger event");
+      return mDetector.onTouchEvent(event);
+    }
+  }
+  
   @RequiresApi(api = Build.VERSION_CODES.CUPCAKE)
   private void addDetector() {
     mDetector = new GestureDetector(getContext(), new GestureDetector.OnGestureListener() {
@@ -187,143 +204,132 @@ public abstract class ElementContainerView extends AbsoluteLayout {
     });
     
     mMultiTouchGestureDetector = new MultiTouchGestureDetector(getContext(), new MultiTouchGestureDetector.SimpleOnMultiTouchGestureListener() {
-      boolean mIsMultiTouchBegin = false;
-      
       @Override
       public void onScaleOrRotate(MultiTouchGestureDetector detector) {
-        doubleFingerScaleAndRotate(detector);
-      }
-      
-      @Override
-      public void onMove(MultiTouchGestureDetector detector) {
-        if (mIsMultiTouchBegin) {
-          mIsMultiTouchBegin = false;
+        if (isDoubleFingerInSelectElement(detector.getMotionEvent())) {
+          doubleFingerScaleAndRotateSelectElementAction(detector);
         } else {
-          mSelectedElement.onSingleFingerMoveProcess(detector.getMoveX(), detector.getMoveY());
+          doubleFingerScaleAndRotateUnSelectElementAction(detector);
         }
       }
       
       @Override
+      public void onMove(MultiTouchGestureDetector detector) {
+      }
+      
+      @Override
       public boolean onBegin(MultiTouchGestureDetector detector) {
-        mIsMultiTouchBegin = true;
-        return super.onBegin(detector);
+        if (isDoubleFingerInSelectElement(detector.getMotionEvent())) {
+          doubleFingerInSelectElementStart(detector);
+        } else {
+          doubleFingerNotInSelectElementStart(detector);
+        }
+        return true;
       }
       
       @Override
       public void onEnd(MultiTouchGestureDetector detector) {
-        super.onEnd(detector);
-        mIsMultiTouchBegin = false;
+        if (isDoubleFingerInSelectElement(detector.getMotionEvent())) {
+          doubleFingerInSelectElementEnd(detector);
+        } else {
+          doubleFingerNotInSelectElementEnd(detector);
+        }
       }
     });
   }
   
-  private void doubleFingerScaleAndRotate(MultiTouchGestureDetector detector) {
-    if (mSelectedElement == null) {
-      Log.e(TAG, "doubleFingerScaleAndRotate error no select element");
-      return;
+  public boolean isDoubleFingerInSelectElement(MotionEvent event) {
+    if (mSelectedElement == null || event == null || event.getPointerCount() <= 1) {
+      return false;
     }
-    
-    float deltaRotate = detector.getRotation();
-    if (deltaRotate <= 0) {
-      deltaRotate = (Math.abs(deltaRotate) > DOUBLE_FINGER_ROTATE_THRESHOLD
-          ? 0
-          : deltaRotate);
-    } else {
-      deltaRotate = (deltaRotate > DOUBLE_FINGER_ROTATE_THRESHOLD
-          ? 0
-          : deltaRotate);
-    }
-    
-    if (!mIsInDoubleFinger) {
-      doubleFingerScaleAndRotateStart(deltaRotate, detector.getScale());
-    } else {
-      doubleFingerScaleAndRotateProcess(deltaRotate, detector.getScale());
-    }
-    
-    Log.d(TAG,
-        "doubleFingerScaleAndRotate |||||||||| deltaRotate:"
-            + deltaRotate + ",deltaScale:" + detector.getScale());
+    final float x0 = event.getX(0);
+    final float y0 = event.getY(0);
+    final float x1 = event.getX(1);
+    final float y1 = event.getY(1);
+    return mSelectedElement.isInWholeDecoration(x0, y0) || mSelectedElement.isInWholeDecoration(x1, y1);
   }
   
   private WsElement getElementFromMotionEvent(MotionEvent event) {
     final float x = event.getX(), y = event.getY();
     return findElementByPosition(x, y);
   }
-  
-  @Override
-  public boolean dispatchTouchEvent(MotionEvent event) {
-    callContainerWorker(containerWorker -> containerWorker.dispatchTouchEvent(event));
-    return super.dispatchTouchEvent(event);
-  }
-  
-  @Override
-  public boolean onInterceptTouchEvent(MotionEvent event) {
-    return true;
-  }
-  
-  @SuppressLint("ClickableViewAccessibility")
-  @Override
-  public boolean onTouchEvent(@NonNull MotionEvent event) {
-    Log.d(TAG, "initDoubleFingerDetector |||||||||| mIsInDoubleFinger:"
-        + mIsInDoubleFinger + ",x0:" + event.getX() + ",y0:" + event.getY());
-    if (mSelectedElement != null && event.getPointerCount() > 1) {
-      final double x0 = event.getX(0);
-      final double y0 = event.getY(0);
-      final double x1 = event.getX(1);
-      final double y1 = event.getY(1);
-      if (mSelectedElement.isInWholeDecoration((float) x0, (float) y0)
-          || mSelectedElement.isInWholeDecoration((float) x1, (float) y1)) {
-        mMultiTouchGestureDetector.onTouchEvent(event);
-        Log.d(TAG, "initDoubleFingerDetector |||||||||| x0:" + x0 + ",x1:" + x1 + ",y0:" + y0 + ",y1:" + y1);
-        return true;
-      }
-    } else {
-      if (mIsInDoubleFinger) {
-        doubleFingerScaleAndRotateEnd();
-        return true;
-      }
-    }
-    
-    if (event.getAction() == MotionEvent.ACTION_DOWN) {
-      cancelAutoUnSelectDecoration();
-    } else if (event.getAction() == MotionEvent.ACTION_UP) {
-      autoUnSelectDecoration();
-    }
-    
-    return mDetector.onTouchEvent(event);
-  }
   // --------------------------------------- 手势操作结束 ---------------------------------------
   
   
   // --------------------------------------- 手势覆写开始 ---------------------------------------
-  protected void doubleFingerScaleAndRotateStart(float deltaRotate, float deltaScale) {
-    mMode = BaseActionMode.DOUBLE_FINGER_SCALE_AND_ROTATE;
-    mSelectedElement.onDoubleFingerScaleAndRotateStart(deltaRotate, deltaScale);
-    update();
-    callListener(elementActionListener -> elementActionListener
-        .onDoubleFingerScaleAndRotateStart(mSelectedElement));
-    mIsInDoubleFinger = true;
-    Log.d(TAG, "doubleFingerScaleAndRotateStart start |||||||||| deltaRotate:" + deltaRotate + ",deltaScale:" + deltaScale);
+  /**
+   * 双指手势开始时落在选中元素中
+   *
+   * @param detector
+   */
+  protected void doubleFingerInSelectElementStart(MultiTouchGestureDetector detector) {
+    callContainerWorker(containerWorker -> containerWorker.doubleFingerInSelectElementStart(detector));
   }
   
-  protected void doubleFingerScaleAndRotateProcess(float deltaRotate, float deltaScale) {
-    mSelectedElement.onDoubleFingerScaleAndRotateProcess(deltaRotate, deltaScale);
-    update();
-    callListener(elementActionListener -> elementActionListener
-        .onDoubleFingerScaleAndRotateProcess(mSelectedElement));
-    Log.d(TAG, "doubleFingerScaleAndRotateStart process |||||||||| deltaRotate:" + deltaRotate + ",deltaScale:" + deltaScale);
+  /**
+   * 双指手势开始时落在没有选中元素中的回调
+   *
+   * @param detector
+   */
+  protected void doubleFingerNotInSelectElementStart(MultiTouchGestureDetector detector) {
+    callContainerWorker(containerWorker -> containerWorker.doubleFingerNotInSelectElementStart(detector));
   }
   
-  protected void doubleFingerScaleAndRotateEnd() {
-    mSelectedElement.onDoubleFingerScaleAndRotateEnd();
-    callListener(elementActionListener -> elementActionListener
-        .onDoubleFingerScaleRotateEnd(mSelectedElement));
-    mIsInDoubleFinger = false;
-    autoUnSelectDecoration();
-    Log.d(TAG, "doubleFingerScaleAndRotateEnd end");
+  /**
+   * 双指旋转缩放事件落在了选中的 element 中
+   */
+  protected void doubleFingerScaleAndRotateSelectElementAction(MultiTouchGestureDetector detector) {
+    if (doubleFingerScaleAndRotateSelectElementPreAction(detector)) {
+      Log.d(TAG, "doubleFingerScaleAndRotateSelectElementAction doubleFingerScaleAndRotateSelectElementPreAction");
+    } else {
+      callContainerWorker(containerWorker -> containerWorker.doubleFingerScaleAndRotateSelectElementAction(detector));
+      Log.d(TAG, "doubleFingerScaleAndRotateSelectElementAction");
+    }
   }
   
+  /**
+   * 双指旋转缩放事件落在了选中的 element 中，优先调用的方法
+   */
+  protected boolean doubleFingerScaleAndRotateSelectElementPreAction(MultiTouchGestureDetector detector) {
+    callContainerWorker(containerWorker -> containerWorker.doubleFingerScaleAndRotateSelectElementPreAction(detector));
+    return false;
+  }
+  
+  /**
+   * 双指旋转缩放事件没有落在选中的 element 中
+   */
+  protected void doubleFingerScaleAndRotateUnSelectElementAction(MultiTouchGestureDetector detector) {
+    callContainerWorker(containerWorker -> containerWorker.doubleFingerScaleAndRotateUnSelectElementAction(detector));
+  }
+  
+  /**
+   * 双指手势结束时落在选中元素中
+   *
+   * @param detector
+   */
+  protected void doubleFingerInSelectElementEnd(MultiTouchGestureDetector detector) {
+    callContainerWorker(containerWorker -> containerWorker.doubleFingerInSelectElementEnd(detector));
+  }
+  
+  /**
+   * 双指手势结束时没有落在选中元素中
+   *
+   * @param detector
+   */
+  protected void doubleFingerNotInSelectElementEnd(MultiTouchGestureDetector detector) {
+    callContainerWorker(containerWorker -> containerWorker.doubleFingerNotInSelectElementEnd(detector));
+  }
+  
+  /**
+   * 抛事件
+   * @param e1
+   * @param e2
+   * @param velocityX
+   * @param velocityY
+   * @return
+   */
   protected boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
+    callContainerWorker(containerWorker -> containerWorker.onFling(e1, e2, velocityX, velocityY));
     return true;
   }
   
@@ -337,7 +343,7 @@ public abstract class ElementContainerView extends AbsoluteLayout {
       Log.d(TAG, "downTapSelectElementAction downTapSelectElementPreAction");
     } else {
       callContainerWorker(containerWorker -> containerWorker.downTapSelectElementAction(event));
-      Log.d(TAG, "downTapSelectElementAction SELECTED_CLICK_OR_MOVE");
+      Log.d(TAG, "downTapSelectElementAction");
     }
   }
   
@@ -410,8 +416,8 @@ public abstract class ElementContainerView extends AbsoluteLayout {
    * @return
    */
   protected void scrollTapUnSelectElementAction(@NonNull MotionEvent event, float[] distanceXY) {
-    callContainerWorker(containerWorker -> containerWorker.scrollTapUnSelectElementAction(event, distanceXY));
-    Log.d(TAG, "scrollTapUnSelectElementAction |||||||||| event:" + event + ",distanceX:" + distanceXY[0] + ",distanceY:" + distanceXY[1]);
+    callContainerWorker(containerWorker -> containerWorker.scrollTapOutOfSelectElementAction(event, distanceXY));
+    Log.d(TAG, "scrollTapOutOfSelectElementAction |||||||||| event:" + event + ",distanceX:" + distanceXY[0] + ",distanceY:" + distanceXY[1]);
   }
   
   /**
@@ -423,8 +429,8 @@ public abstract class ElementContainerView extends AbsoluteLayout {
     if (upTapSelectElementPreAction(event)) {
       Log.d(TAG, "upTapSelectElementAction upTapSelectElementPreAction");
     } else {
-      callContainerWorker(containerWorker -> containerWorker.downTapSelectElementAction(event));
-      Log.d(TAG, "downTapSelectElementAction SELECTED_CLICK_OR_MOVE");
+      callContainerWorker(containerWorker -> containerWorker.upTapSelectElementAction(event));
+      Log.d(TAG, "downTapSelectElementAction");
     }
   }
   
@@ -461,8 +467,8 @@ public abstract class ElementContainerView extends AbsoluteLayout {
     Log.d(TAG, "upTapUnSelectElementAction |||||||||| event:" + event + ",clickedElement:" + clickedElement);
     callContainerWorker(containerWorker -> containerWorker.upTapUnSelectElementAction(event, clickedElement));
   }
+  // --------------------------------------- 手势覆写结束 ---------------------------------------
   
-  // --------------------------------------- 手势覆写开始 ---------------------------------------
   
   /**
    * 添加一个监听器
@@ -496,17 +502,8 @@ public abstract class ElementContainerView extends AbsoluteLayout {
     }
   }
   
-  @Nullable
-  public WsElement getSelectElement() {
-    return mSelectedElement;
-  }
-  
-  public List<WsElement> getElementList() {
-    return mElementList;
-  }
   
   // --------------------------------------- Element 操作开始 ---------------------------------------
-  
   /**
    * 添加一个元素，如果元素已经存在，那么就会添加失败
    *
@@ -535,7 +532,7 @@ public abstract class ElementContainerView extends AbsoluteLayout {
     element.add(this);
     callListener(
         elementActionListener -> elementActionListener.onAdd(element));
-    autoUnSelectDecoration();
+    callContainerWorker(containerWorker -> containerWorker.addElement(element));
     return true;
   }
   
@@ -579,6 +576,7 @@ public abstract class ElementContainerView extends AbsoluteLayout {
     callListener(
         elementActionListener -> elementActionListener
             .onDelete(element));
+    callContainerWorker(containerWorker -> containerWorker.deleteElement(element));
     return true;
   }
   
@@ -648,6 +646,7 @@ public abstract class ElementContainerView extends AbsoluteLayout {
     callListener(
         elementActionListener -> elementActionListener
             .onSelect(element));
+    callContainerWorker(containerWorker -> containerWorker.selectElement(element));
     return true;
   }
   
@@ -672,40 +671,22 @@ public abstract class ElementContainerView extends AbsoluteLayout {
     callListener(
         elementActionListener -> elementActionListener
             .onUnSelect(mSelectedElement));
+    callContainerWorker(ContainerWorker::unSelectElement);
     mSelectedElement.unSelect();
     mSelectedElement = null;
     return true;
   }
-  
-  /**
-   * 一定的时间之后自动取消当前元素的选中
-   */
-  public void autoUnSelectDecoration() {
-    if (mIsNeedAutoUnSelect) {
-      cancelAutoUnSelectDecoration();
-      postDelayed(mUnSelectRunnable, mAutoUnSelectDuration);
-    }
-  }
-  
-  /**
-   * 取消自动取消选中
-   */
-  public void cancelAutoUnSelectDecoration() {
-    removeCallbacks(mUnSelectRunnable);
-  }
-  
   // --------------------------------------- Element 操作结束 ---------------------------------------
   
   
-  // --------------------------------------- getter setter 开始 ---------------------------------------
   
-  /**
-   * 是否需要自动取消选中
-   *
-   * @param needAutoUnSelect
-   */
-  public void setNeedAutoUnSelect(boolean needAutoUnSelect) {
-    mIsNeedAutoUnSelect = needAutoUnSelect;
+  // --------------------------------------- getter setter 开始 ---------------------------------------
+  public Vibrator getVibrator() {
+    return mVibrator;
+  }
+  
+  public List<WsElement> getElementList() {
+    return mElementList;
   }
   
   public void setMode(BaseActionMode mode) {
@@ -716,11 +697,14 @@ public abstract class ElementContainerView extends AbsoluteLayout {
     return mMode;
   }
   
+  @Nullable
+  public WsElement getSelectElement() {
+    return mSelectedElement;
+  }
   // --------------------------------------- getter setter 结束 ---------------------------------------
   
   
   // --------------------------------------- 接口开始 ---------------------------------------
-  
   public void callListener(Consumer<ElementActionListener> decorationActionListenerConsumer) {
     for (ElementActionListener elementActionListener : mElementActionListenerSet) {
       try {
@@ -758,27 +742,6 @@ public abstract class ElementContainerView extends AbsoluteLayout {
     void onDelete(WsElement element);
     
     /**
-     * 选中了元素之后，对元素双指旋转缩放开始的回调
-     *
-     * @param element
-     */
-    void onDoubleFingerScaleAndRotateStart(WsElement element);
-    
-    /**
-     * 选中了元素之后，对元素双指旋转缩放过程的回调
-     *
-     * @param element
-     */
-    void onDoubleFingerScaleAndRotateProcess(WsElement element);
-    
-    /**
-     * 一次 双指旋转、缩放 操作结束的回调
-     *
-     * @param element
-     */
-    void onDoubleFingerScaleRotateEnd(WsElement element);
-    
-    /**
      * 选中元素
      *
      * @param element
@@ -814,21 +777,6 @@ public abstract class ElementContainerView extends AbsoluteLayout {
     public void onUnSelect(WsElement element) {
       Log.d(TAG, "onUnSelect");
     }
-    
-    @Override
-    public void onDoubleFingerScaleAndRotateStart(WsElement element) {
-      Log.d(TAG, "onDoubleFingerScaleAndRotateStart");
-    }
-    
-    @Override
-    public void onDoubleFingerScaleAndRotateProcess(WsElement element) {
-      Log.d(TAG, "onDoubleFingerScaleAndRotateProcess");
-    }
-    
-    @Override
-    public void onDoubleFingerScaleRotateEnd(WsElement element) {
-      Log.d(TAG, "onDoubleFingerScaleRotateEnd");
-    }
   }
   
   public interface Consumer<T> {
@@ -839,7 +787,6 @@ public abstract class ElementContainerView extends AbsoluteLayout {
     MOVE,
     SELECT,
     SELECTED_CLICK_OR_MOVE,
-    DOUBLE_FINGER_SCALE_AND_ROTATE,
   }
   // --------------------------------------- 接口结束 ---------------------------------------
 }

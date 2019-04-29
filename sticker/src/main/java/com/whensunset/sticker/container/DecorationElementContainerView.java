@@ -8,7 +8,6 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 
-import com.whensunset.sticker.element.AnimationElement;
 import com.whensunset.sticker.element.DecorationElement;
 import com.whensunset.sticker.element.WsElement;
 
@@ -20,7 +19,6 @@ public class DecorationElementContainerView extends ElementContainerView {
   private static final String TAG = "heshixi:DECV";
   
   protected DecorationActionMode mDecorationActionMode;
-  protected boolean mIsRunOnFlingAnimation = true;
   
   public DecorationElementContainerView(Context context) {
     super(context);
@@ -61,29 +59,6 @@ public class DecorationElementContainerView extends ElementContainerView {
     addElement(wsElement);
     selectElement(wsElement);
     update();
-  }
-  
-  @Override
-  protected boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-    if (!mIsRunOnFlingAnimation) {
-      return false;
-    }
-    
-    DecorationElement element = (DecorationElement) mSelectedElement;
-    if (element == null) {
-      return false;
-    }
-    
-    element = (DecorationElement) findElementByPosition(e2.getX(), e2.getY());
-    if (element == null) {
-      return false;
-    }
-    
-    AnimationElement.TransformParam to = new AnimationElement.TransformParam(element);
-    to.mMoveY += (velocityY * 0.2 * 0.3);
-    to.mMoveX += (velocityX * 0.2 * 0.3);
-    element.startElementAnimation(to);
-    return true;
   }
   
   @Override

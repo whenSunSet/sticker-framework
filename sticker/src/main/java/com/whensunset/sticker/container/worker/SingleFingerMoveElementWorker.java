@@ -5,6 +5,7 @@ import android.util.Log;
 import android.view.MotionEvent;
 
 import com.whensunset.sticker.container.ElementContainerView;
+import com.whensunset.sticker.container.worker.DefaultContainerWorker;
 import com.whensunset.sticker.element.WsElement;
 
 /**
@@ -13,7 +14,7 @@ import com.whensunset.sticker.element.WsElement;
  */
 
 public class SingleFingerMoveElementWorker extends DefaultContainerWorker {
-  private static final String TAG = "SFMEWorker";
+  private static final String TAG = "WhenSunset:SFMEW";
   
   public SingleFingerMoveElementWorker(ElementContainerView elementContainerView) {
     super(elementContainerView);
@@ -27,26 +28,19 @@ public class SingleFingerMoveElementWorker extends DefaultContainerWorker {
   @Override
   public void scrollTapSelectElementAction(@NonNull MotionEvent event, float[] distanceXY) {
     ElementContainerView.BaseActionMode mode = mElementContainerView.getMode();
-    if (mode == ElementContainerView.BaseActionMode.SELECTED_CLICK_OR_MOVE
-        || mode == ElementContainerView.BaseActionMode.SELECT
-        || mode == ElementContainerView.BaseActionMode.MOVE) {
-      if (mode == ElementContainerView.BaseActionMode.SELECTED_CLICK_OR_MOVE || mode == ElementContainerView.BaseActionMode.SELECT) {
-        singleFingerMoveStartByContainerView(distanceXY[0], distanceXY[1]);
-      } else {
-        singleFingerMoveProcessByContainerView(distanceXY[0], distanceXY[1]);
-      }
-      mElementContainerView.update();
-      mElementContainerView.setMode(ElementContainerView.BaseActionMode.MOVE);
-      ;
+    if (mode == ElementContainerView.BaseActionMode.SELECTED_CLICK_OR_MOVE || mode == ElementContainerView.BaseActionMode.SELECT) {
+      singleFingerMoveStart(distanceXY[0], distanceXY[1]);
     } else {
-      Log.e(TAG, "scrollTapSelectElementAction error not this action!");
+      singleFingerMoveProcess(distanceXY[0], distanceXY[1]);
     }
+    mElementContainerView.update();
+    mElementContainerView.setMode(ElementContainerView.BaseActionMode.MOVE);
   }
   
   @Override
   public void upTapSelectElementAction(@NonNull MotionEvent event) {
     if (mElementContainerView.getMode() == ElementContainerView.BaseActionMode.MOVE) {
-      singleFingerMoveEndByContainerView(event);
+      singleFingerMoveEnd(event);
     }
   }
   
@@ -56,19 +50,18 @@ public class SingleFingerMoveElementWorker extends DefaultContainerWorker {
    * @param distanceX
    * @param distanceY
    */
-  private void singleFingerMoveStartByContainerView(float distanceX, float distanceY) {
+  protected void singleFingerMoveStart(float distanceX, float distanceY) {
     WsElement selectElement = mElementContainerView.getSelectElement();
     if (selectElement == null) {
-      Log.e(TAG, "singleFingerMoveStartByContainerView error select element is null!");
+      Log.e(TAG, "singleFingerMoveStart error select element is null!");
       return;
     }
     
     selectElement.onSingleFingerMoveStart();
-    mElementContainerView.callContainerWorker(containerWorker -> containerWorker.singleFingerMoveStart(distanceX, distanceY));
     mElementContainerView.callListener(elementActionListener -> {
       ((SingleFingerMoveElementActionListener) elementActionListener).onSingleFingerMoveStart(selectElement);
     });
-    Log.d(TAG, "singleFingerMoveStartByContainerView move start |||||||||| distanceX:" + distanceX + ",distanceY:" + distanceY);
+    Log.d(TAG, "singleFingerMoveStart move start |||||||||| distanceX:" + distanceX + ",distanceY:" + distanceY);
   }
   
   /**
@@ -77,19 +70,18 @@ public class SingleFingerMoveElementWorker extends DefaultContainerWorker {
    * @param distanceX
    * @param distanceY
    */
-  private void singleFingerMoveProcessByContainerView(float distanceX, float distanceY) {
+  protected void singleFingerMoveProcess(float distanceX, float distanceY) {
     WsElement selectElement = mElementContainerView.getSelectElement();
     if (selectElement == null) {
-      Log.e(TAG, "singleFingerMoveStartByContainerView error select element is null!");
+      Log.e(TAG, "singleFingerMoveStart error select element is null!");
       return;
     }
     
     selectElement.onSingleFingerMoveProcess(distanceX, distanceY);
-    mElementContainerView.callContainerWorker(containerWorker -> containerWorker.singleFingerMoveProcess(distanceX, distanceY));
     mElementContainerView.callListener(elementActionListener -> {
       ((SingleFingerMoveElementActionListener) elementActionListener).onSingleFingerMoveProcess(selectElement);
     });
-    Log.d(TAG, "singleFingerMoveProcessByContainerView move process |||||||||| distanceX:" + distanceX + ",distanceY:" + distanceY);
+    Log.d(TAG, "singleFingerMoveProcess move process |||||||||| distanceX:" + distanceX + ",distanceY:" + distanceY);
   }
   
   /**
@@ -97,19 +89,18 @@ public class SingleFingerMoveElementWorker extends DefaultContainerWorker {
    *
    * @param event
    */
-  private void singleFingerMoveEndByContainerView(MotionEvent event) {
+  protected void singleFingerMoveEnd(MotionEvent event) {
     WsElement selectElement = mElementContainerView.getSelectElement();
     if (selectElement == null) {
-      Log.e(TAG, "singleFingerMoveStartByContainerView error select element is null!");
+      Log.e(TAG, "singleFingerMoveStart error select element is null!");
       return;
     }
     
     selectElement.onSingleFingerMoveEnd();
-    mElementContainerView.callContainerWorker(containerWorker -> containerWorker.singleFingerMoveEnd(event));
     mElementContainerView.callListener(elementActionListener -> {
       ((SingleFingerMoveElementActionListener) elementActionListener).onSingleFingerMoveEnd(selectElement);
     });
-    Log.d(TAG, "singleFingerMoveEndByContainerView move end |||||||||| event:" + event);
+    Log.d(TAG, "singleFingerMoveEnd move end |||||||||| event:" + event);
   }
   
   
