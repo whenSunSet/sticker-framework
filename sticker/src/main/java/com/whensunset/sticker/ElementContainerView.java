@@ -31,8 +31,6 @@ import static com.whensunset.sticker.CommonUtil.copyMotionEvent;
 
 public class ElementContainerView extends AbsoluteLayout {
   private static final String TAG = "WhenSunset:ECV";
-  // 每个双指旋转事件能进行的最大角度，注意这里限制的是 delta 值，超过了这个值，就丢弃这个事件
-  private static final int DOUBLE_FINGER_ROTATE_THRESHOLD = 45;
   
   private BaseActionMode mMode = BaseActionMode.SELECTED_CLICK_OR_MOVE; // 当前手势所处的模式
   private Rect mEditorRect = new Rect(); // 元素 可绘制的区域，也就是当前 View 的区域
@@ -97,80 +95,41 @@ public class ElementContainerView extends AbsoluteLayout {
   }
   
   // --------------------------------------- 手势操作开始 ---------------------------------------
-  @RequiresApi(api = Build.VERSION_CODES.CUPCAKE)
   private void addDetector() {
-    mDetector = new GestureDetector(getContext(), new GestureDetector.OnGestureListener() {
-      @Override
-      public boolean onDown(MotionEvent e) {
-        if (mIsInDoubleFinger) {
-          return false;
-        }
-        return singleFingerDown(e);
-      }
-      
-      @Override
-      public void onShowPress(MotionEvent e) {
-      }
-      
+    mDetector = new GestureDetector(getContext(), new GestureDetector.SimpleOnGestureListener() {
       @Override
       public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
-        Log.d(TAG, "onFling |||||||||| e1:" + e1 + ",e2:" + e2 + ",velocityX:" + velocityX + ",velocityY:" + velocityY);
         return ElementContainerView.this.onFling(e1, e2, velocityX, velocityY);
       }
       
-      @RequiresApi(api = Build.VERSION_CODES.ECLAIR)
       @Override
       public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
-        if (mIsInDoubleFinger) {
-          return false;
-        }
-        
-        float[] distance = new float[]{distanceX, distanceY};
-        boolean result = scrollSelectTapOtherAction(e2, distance);
-        if (result) {
-          return true;
-        }
-        
-        if (mMode == BaseActionMode.SELECTED_CLICK_OR_MOVE
-            || mMode == BaseActionMode.SELECT
-            || mMode == BaseActionMode.MOVE) {
-          return singleFingerMove(distance[0], distance[1]);
-        }
-        return false;
-      }
-      
-      @Override
-      public void onLongPress(MotionEvent e) {
-      
-      }
-      
-      @Override
-      public boolean onSingleTapUp(MotionEvent e) {
-        if (mIsInDoubleFinger) {
-          return false;
-        }
-        return singleFingerUp(e);
+        return singleFingerMove(e2, new float[]{distanceX, distanceY});
       }
     });
     
     mMultiTouchGestureDetector = new MultiTouchGestureDetector(getContext(), new MultiTouchGestureDetector.SimpleOnMultiTouchGestureListener() {
       boolean mIsMultiTouchBegin = false;
-      
       @Override
       public void onScaleOrRotate(MultiTouchGestureDetector detector) {
-        doubleFingerScaleAndRotate(detector);
+        if (mIsInDoubleFinger) {
+          doubleFingerScaleAndRotateProcess(detector.getRotation(), detector.getScale());
+        } else {
+          doubleFingerScaleAndRotateStart(detector.getRotation(), detector.getScale());
+          mIsInDoubleFinger = true;
+        }
       }
       
       @Override
       public void onMove(MultiTouchGestureDetector detector) {
-        if (mIsMultiTouchBegin) {
+         if (mIsMultiTouchBegin) {
           mIsMultiTouchBegin = false;
         } else {
           mSelectedElement.onSingleFingerMoveProcess(detector.getMoveX(), detector.getMoveY());
         }
       }
       
-      @Override
+       @Override
       public boolean onBegin(MultiTouchGestureDetector detector) {
         mIsMultiTouchBegin = true;
         return super.onBegin(detector);
@@ -182,118 +141,6 @@ public class ElementContainerView extends AbsoluteLayout {
         mIsMultiTouchBegin = false;
       }
     });
-  }
-  
-  private boolean singleFingerDown(MotionEvent e) {
-    final float x = e.getX(), y = e.getY();
-    mMode = BaseActionMode.SELECTED_CLICK_OR_MOVE;
-    WsElement clickedElement = findElementByPosition(x, y);
-    
-    Log.d(TAG, "singleFingerDown |||||||||| x:" + x + ",y:" + y + ",clickedElement:" + clickedElement + ",mSelectedElement:" + mSelectedElement);
-    if (mSelectedElement != null) {
-      if (WsElement.isSameElement(clickedElement,
-          mSelectedElement)) {
-        boolean result = downSelectTapOtherAction(e);
-        if (result) {
-          Log.d(TAG, "singleFingerDown other action");
-          return true;
-        }
-        if (mSelectedElement.isInWholeDecoration(x, y)) {
-          mMode = BaseActionMode.SELECTED_CLICK_OR_MOVE;
-          Log.d(TAG, "singleFingerDown SELECTED_CLICK_OR_MOVE");
-          return true;
-        }
-        Log.e(TAG, "singleFingerDown error not action");
-        return false;
-      } else {
-        if (clickedElement == null) {
-          mMode = BaseActionMode.SINGLE_TAP_BLANK_SCREEN;
-          Log.d(TAG, "singleFingerDown SINGLE_TAP_BLANK_SCREEN");
-        } else {
-          mMode = BaseActionMode.SELECT;
-          unSelectElement();
-          selectElement(clickedElement);
-          update();
-          Log.d(TAG, "singleFingerDown unSelect old element, select new element");
-        }
-        return true;
-      }
-    } else {
-      if (clickedElement != null) {
-        mMode = BaseActionMode.SELECT;
-        selectElement(clickedElement);
-        update();
-        Log.d(TAG, "singleFingerDown select new element");
-      } else {
-        mMode = BaseActionMode.SINGLE_TAP_BLANK_SCREEN;
-        Log.d(TAG, "singleFingerDown SINGLE_TAP_BLANK_SCREEN");
-      }
-      return true;
-    }
-  }
-  
-  private boolean singleFingerMove(float distanceX, float distanceY) {
-    if (mSelectedElement == null) {
-      Log.e(TAG, "singleFingerMove error no selected element");
-      return false;
-    }
-    
-    if (mMode == BaseActionMode.SELECTED_CLICK_OR_MOVE || mMode == BaseActionMode.SELECT) {
-      singleFingerMoveStart(distanceX, distanceY);
-    } else {
-      singleFingerMoveProcess(distanceX, distanceY);
-    }
-    update();
-    mMode = BaseActionMode.MOVE;
-    Log.d(TAG,
-        "singleFingerMove move |||||||||| distanceX:" + distanceX + "distanceY:"
-            + distanceY);
-    return true;
-    
-  }
-  
-  private boolean singleFingerUp(MotionEvent e) {
-    Log.d(TAG, "singleFingerUp ||||||||||  x:" + e.getX() + ",y:" + e.getY());
-    switch (mMode) {
-      case SELECTED_CLICK_OR_MOVE:
-        selectedClick(e);
-        update();
-        return true;
-      case SINGLE_TAP_BLANK_SCREEN:
-        onClickBlank();
-        return true;
-      default:
-        Log.d(TAG, "singleFingerUp other action");
-        return false;
-    }
-  }
-  
-  private void doubleFingerScaleAndRotate(MultiTouchGestureDetector detector) {
-    if (mSelectedElement == null) {
-      Log.e(TAG, "doubleFingerScaleAndRotate error no select element");
-      return;
-    }
-    
-    float deltaRotate = detector.getRotation();
-    if (deltaRotate <= 0) {
-      deltaRotate = (Math.abs(deltaRotate) > DOUBLE_FINGER_ROTATE_THRESHOLD
-          ? 0
-          : deltaRotate);
-    } else {
-      deltaRotate = (deltaRotate > DOUBLE_FINGER_ROTATE_THRESHOLD
-          ? 0
-          : deltaRotate);
-    }
-    
-    if (!mIsInDoubleFinger) {
-      doubleFingerScaleAndRotateStart(deltaRotate, detector.getScale());
-    } else {
-      doubleFingerScaleAndRotateProcess(deltaRotate, detector.getScale());
-    }
-    
-    Log.d(TAG,
-        "doubleFingerScaleAndRotate |||||||||| deltaRotate:"
-            + deltaRotate + ",deltaScale:" + detector.getScale());
   }
   
   @Override
@@ -318,6 +165,33 @@ public class ElementContainerView extends AbsoluteLayout {
   public boolean onTouchEvent(@NonNull MotionEvent event) {
     Log.d(TAG, "initDoubleFingerDetector |||||||||| mIsInDoubleFinger:"
         + mIsInDoubleFinger + ",x0:" + event.getX() + ",y0:" + event.getY());
+    
+    if (isDoubleFingerInSelectElement(event)) {
+      mMultiTouchGestureDetector.onTouchEvent(event);
+    } else {
+      if (mIsInDoubleFinger) {
+        doubleFingerScaleAndRotateEnd();
+        mIsInDoubleFinger = false;
+        return true;
+      }
+      switch (event.getAction()) {
+        case MotionEvent.ACTION_DOWN:
+          cancelAutoUnSelectDecoration();
+          singleFingerDown(event);
+          break;
+        case MotionEvent.ACTION_MOVE:
+          mDetector.onTouchEvent(event);
+          break;
+        case MotionEvent.ACTION_UP:
+          autoUnSelectDecoration();
+          singleFingerUp(event);
+          break;
+      }
+    }
+    return true;
+  }
+  
+  private boolean isDoubleFingerInSelectElement(MotionEvent event) {
     if (mSelectedElement != null && event.getPointerCount() > 1) {
       final double x0 = event.getX(0);
       final double y0 = event.getY(0);
@@ -325,35 +199,101 @@ public class ElementContainerView extends AbsoluteLayout {
       final double y1 = event.getY(1);
       if (mSelectedElement.isInWholeDecoration((float) x0, (float) y0)
           || mSelectedElement.isInWholeDecoration((float) x1, (float) y1)) {
-        mMultiTouchGestureDetector.onTouchEvent(event);
-        Log.d(TAG, "initDoubleFingerDetector |||||||||| x0:" + x0 + ",x1:" + x1 + ",y0:" + y0 + ",y1:" + y1);
+        Log.d(TAG, "isDoubleFingerInSelectElement |||||||||| x0:" + x0 + ",x1:" + x1 + ",y0:" + y0 + ",y1:" + y1);
         return true;
+      }
+    }
+    return false;
+  }
+  
+  private void singleFingerDown(MotionEvent e) {
+    final float x = e.getX(), y = e.getY();
+    mMode = BaseActionMode.SELECTED_CLICK_OR_MOVE;
+    WsElement clickedElement = findElementByPosition(x, y);
+    
+    Log.d(TAG, "singleFingerDown |||||||||| x:" + x + ",y:" + y + ",clickedElement:" + clickedElement + ",mSelectedElement:" + mSelectedElement);
+    if (mSelectedElement != null) {
+      if (WsElement.isSameElement(clickedElement,
+          mSelectedElement)) {
+        boolean result = downSelectTapOtherAction(e);
+        if (result) {
+          Log.d(TAG, "singleFingerDown other action");
+          return;
+        }
+        if (mSelectedElement.isInWholeDecoration(x, y)) {
+          mMode = BaseActionMode.SELECTED_CLICK_OR_MOVE;
+          Log.d(TAG, "singleFingerDown SELECTED_CLICK_OR_MOVE");
+          return;
+        }
+        Log.e(TAG, "singleFingerDown error not action");
+      } else {
+        if (clickedElement == null) {
+          mMode = BaseActionMode.SINGLE_TAP_BLANK_SCREEN;
+          Log.d(TAG, "singleFingerDown SINGLE_TAP_BLANK_SCREEN");
+        } else {
+          mMode = BaseActionMode.SELECT;
+          unSelectElement();
+          selectElement(clickedElement);
+          update();
+          Log.d(TAG, "singleFingerDown unSelect old element, select new element");
+        }
       }
     } else {
-      if (mIsInDoubleFinger) {
-        doubleFingerScaleAndRotateEnd();
-        return true;
+      if (clickedElement != null) {
+        mMode = BaseActionMode.SELECT;
+        selectElement(clickedElement);
+        update();
+        Log.d(TAG, "singleFingerDown select new element");
+      } else {
+        mMode = BaseActionMode.SINGLE_TAP_BLANK_SCREEN;
+        Log.d(TAG, "singleFingerDown SINGLE_TAP_BLANK_SCREEN");
       }
     }
-    
-    if (event.getAction() == MotionEvent.ACTION_DOWN) {
-      cancelAutoUnSelectDecoration();
-    } else if (event.getAction() == MotionEvent.ACTION_UP) {
-      autoUnSelectDecoration();
-    }
-    
-    if (event.getAction() == MotionEvent.ACTION_UP) {
-      boolean result = upSelectTapOtherAction(event);
-      if (result) {
-        return true;
-      }
-      
-      if (mMode == BaseActionMode.MOVE) {
-        singleFingerMoveEnd();
-      }
-    }
-    return mDetector.onTouchEvent(event);
   }
+  
+  private boolean singleFingerMove(MotionEvent e2, float[] distanceXY) {
+    Log.d(TAG,
+        "singleFingerMove move |||||||||| distanceX:" + distanceXY[0] + "distanceY:"
+            + distanceXY[1]);
+    if (scrollSelectTapOtherAction(e2, distanceXY)) {
+      return true;
+    } else {
+      if (mMode == BaseActionMode.SELECTED_CLICK_OR_MOVE
+          || mMode == BaseActionMode.SELECT
+          || mMode == BaseActionMode.MOVE) {
+        if (mMode == BaseActionMode.SELECTED_CLICK_OR_MOVE || mMode == BaseActionMode.SELECT) {
+          singleFingerMoveStart(distanceXY[0], distanceXY[1]);
+        } else {
+          singleFingerMoveProcess(distanceXY[0], distanceXY[1]);
+        }
+        update();
+        mMode = BaseActionMode.MOVE;
+        return true;
+      }
+    }
+    return false;
+  }
+  
+  private void singleFingerUp(MotionEvent event) {
+    Log.d(TAG, "singleFingerUp ||||||||||  x:" + event.getX() + ",y:" + event.getY());
+    if (!upSelectTapOtherAction(event)) {
+      switch (mMode) {
+        case SELECTED_CLICK_OR_MOVE:
+          selectedClick(event);
+          update();
+          return;
+        case SINGLE_TAP_BLANK_SCREEN:
+          onClickBlank();
+          return;
+        case MOVE:
+          singleFingerMoveEnd();
+          return;
+        default:
+          Log.d(TAG, "singleFingerUp other action");
+      }
+    }
+  }
+  
   // --------------------------------------- 手势操作结束 ---------------------------------------
   
   
