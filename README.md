@@ -11,6 +11,9 @@
 
 还没写。。
 
+## 四、其他版本
+- 1.[这是 flutter 版](https://github.com/whenSunSet/sticker-framework-flutter)
+
 ## 四、支持我
 
 不贩卖焦虑，也不标题党。分享一些这个世界上有意思的事情。题材包括且不限于：科幻、科学、科技、互联网、程序员、计算机编程。
