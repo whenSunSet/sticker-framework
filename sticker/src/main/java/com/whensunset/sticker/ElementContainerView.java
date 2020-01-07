@@ -178,6 +178,12 @@ public class ElementContainerView extends AbsoluteLayout {
         case MotionEvent.ACTION_DOWN:
           cancelAutoUnSelectDecoration();
           singleFingerDown(event);
+          //单指操作不在子控件，进行事件分发,不作全局拦截
+          if (mMode == BaseActionMode.SINGLE_TAP_BLANK_SCREEN) {
+            autoUnSelectDecoration();
+            singleFingerUp(event);
+            return false;
+          }
           break;
         case MotionEvent.ACTION_MOVE:
           mDetector.onTouchEvent(event);
