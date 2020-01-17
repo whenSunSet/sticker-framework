@@ -145,6 +145,17 @@ public class ElementContainerView extends AbsoluteLayout {
   
   @Override
   public boolean dispatchTouchEvent(MotionEvent ev) {
+
+    //空白区域，没有选中元素，放行
+    if (ev.getAction() == MotionEvent.ACTION_DOWN) {
+      final float x = ev.getX(), y = ev.getY();
+      WsElement clickedElement = findElementByPosition(x, y);
+      if (clickedElement == null && mSelectedElement == null) {
+        onClickBlank();
+        return false;
+      }
+    }
+
     if (mSelectedElement != null && mSelectedElement.isShowingViewResponseSelectedClick()) {
       if (ev.getAction() == MotionEvent.ACTION_DOWN) {
         mUpDownMotionEvent[0] = copyMotionEvent(ev);
