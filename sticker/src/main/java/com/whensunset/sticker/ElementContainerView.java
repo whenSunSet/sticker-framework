@@ -151,7 +151,6 @@ public class ElementContainerView extends AbsoluteLayout {
       final float x = ev.getX(), y = ev.getY();
       WsElement clickedElement = findElementByPosition(x, y);
       if (clickedElement == null && mSelectedElement == null) {
-        onClickBlank();
         return false;
       }
     }
