@@ -82,7 +82,7 @@ public abstract class WsElement implements Cloneable {
     
     if (mElementShowingView == null) {
       mElementShowingView = initView();
-      AbsoluteLayout.LayoutParams showingViewLayoutParams = new AbsoluteLayout.LayoutParams((int) mOriginWidth, (int) mOriginWidth, 0, 0);
+      AbsoluteLayout.LayoutParams showingViewLayoutParams = new AbsoluteLayout.LayoutParams((int) mOriginWidth, (int) mOriginHeight, 0, 0);
       mElementShowingView.setLayoutParams(showingViewLayoutParams);
       mElementContainerView.addView(mElementShowingView);
     } else {

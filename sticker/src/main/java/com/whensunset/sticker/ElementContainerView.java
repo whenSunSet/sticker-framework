@@ -145,6 +145,16 @@ public class ElementContainerView extends AbsoluteLayout {
   
   @Override
   public boolean dispatchTouchEvent(MotionEvent ev) {
+
+    //空白区域，没有选中元素，放行
+    if (ev.getAction() == MotionEvent.ACTION_DOWN) {
+      final float x = ev.getX(), y = ev.getY();
+      WsElement clickedElement = findElementByPosition(x, y);
+      if (clickedElement == null && mSelectedElement == null) {
+        return false;
+      }
+    }
+
     if (mSelectedElement != null && mSelectedElement.isShowingViewResponseSelectedClick()) {
       if (ev.getAction() == MotionEvent.ACTION_DOWN) {
         mUpDownMotionEvent[0] = copyMotionEvent(ev);
@@ -178,6 +188,12 @@ public class ElementContainerView extends AbsoluteLayout {
         case MotionEvent.ACTION_DOWN:
           cancelAutoUnSelectDecoration();
           singleFingerDown(event);
+          //单指操作不在子控件，进行事件分发,不作全局拦截
+          if (mMode == BaseActionMode.SINGLE_TAP_BLANK_SCREEN) {
+            autoUnSelectDecoration();
+            singleFingerUp(event);
+            return false;
+          }
           break;
         case MotionEvent.ACTION_MOVE:
           mDetector.onTouchEvent(event);
